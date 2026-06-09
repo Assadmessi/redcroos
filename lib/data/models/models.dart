@@ -1,41 +1,18 @@
 import '../../core/constants/app_constants.dart';
 
 // ─────────────────────────────────────────────
-// SHARED HELPER — blood type string
-// ─────────────────────────────────────────────
-String _bloodTypeString(BloodType bloodType) {
-  switch (bloodType) {
-    case BloodType.OP:
-      return 'O+';
-    case BloodType.OM:
-      return 'O-';
-    case BloodType.AP:
-      return 'A+';
-    case BloodType.AM:
-      return 'A-';
-    case BloodType.BP:
-      return 'B+';
-    case BloodType.BM:
-      return 'B-';
-    case BloodType.ABP:
-      return 'AB+';
-    case BloodType.ABM:
-      return 'AB-';
-  }
-}
-
-// ─────────────────────────────────────────────
-// MEMBER MODEL
+// MEMBER MODEL — Updated with full rank system
 // ─────────────────────────────────────────────
 class Member {
   final String id;
   final String memberNo;
   final String nameEn;
   final String nameMm;
-  final String rankId;
-  final String rankNameEn;
-  final String rankNameMm;
-  final String unit;
+  final MemberRank rank;
+  final UnitType unitType;
+  final int? companyNo;      // 1-4, null if Brigade Office
+  final int? platoonNo;      // e.g. 1, 2 within company
+  final int? sectionNo;      // e.g. 1, 2 within platoon
   final MemberStatus status;
   final BloodType bloodType;
   final DateTime joinDate;
@@ -47,7 +24,20 @@ class Member {
   final String emergencyContact;
   final String emergencyPhone;
   final List<String> skillIds;
-  final String? youthGroupId;
+
+  // Special flags
+  final bool isChairperson;           // ဥက္ကဌ
+  final bool isBrigadeOfficeChief;    // Chief of Brigade Office
+  final bool hasBrigadeOfficeAuthority; // Special authority granted by Brigade Commander
+
+  // Duty assignment (can manage two platoons)
+  final List<int>? assignedPlatoons;  // For officers managing multiple platoons
+
+  // Youth Wing
+  final YouthGroup? youthGroup;
+  final YouthGroupRole? youthGroupRole;
+
+  // Legacy role (kept for backward compat)
   final UserRole role;
 
   const Member({
@@ -55,10 +45,11 @@ class Member {
     required this.memberNo,
     required this.nameEn,
     required this.nameMm,
-    required this.rankId,
-    required this.rankNameEn,
-    required this.rankNameMm,
-    required this.unit,
+    required this.rank,
+    required this.unitType,
+    this.companyNo,
+    this.platoonNo,
+    this.sectionNo,
     required this.status,
     required this.bloodType,
     required this.joinDate,
@@ -70,7 +61,12 @@ class Member {
     required this.emergencyContact,
     required this.emergencyPhone,
     required this.skillIds,
-    this.youthGroupId,
+    this.isChairperson = false,
+    this.isBrigadeOfficeChief = false,
+    this.hasBrigadeOfficeAuthority = false,
+    this.assignedPlatoons,
+    this.youthGroup,
+    this.youthGroupRole,
     required this.role,
   });
 
@@ -81,71 +77,127 @@ class Member {
     return nameEn.toUpperCase();
   }
 
-  String get bloodTypeDisplay => _bloodTypeString(bloodType);
+  String get rankNameEn => RankHelper.nameEn(rank);
+  String get rankNameMm => RankHelper.nameMm(rank);
+  bool get isOfficer => RankHelper.isOfficerRank(rank);
+
+  String get bloodTypeDisplay {
+    switch (bloodType) {
+      case BloodType.OP: return 'O+';
+      case BloodType.OM: return 'O-';
+      case BloodType.AP: return 'A+';
+      case BloodType.AM: return 'A-';
+      case BloodType.BP: return 'B+';
+      case BloodType.BM: return 'B-';
+      case BloodType.ABP: return 'AB+';
+      case BloodType.ABM: return 'AB-';
+    }
+  }
+
+  String get unitDisplay {
+    if (unitType == UnitType.brigadeOffice) return 'Brigade Office';
+    if (unitType == UnitType.companyOffice) return 'Company $companyNo Office';
+    if (unitType == UnitType.platoonOffice) {
+      return 'Company $companyNo Platoon $platoonNo Office';
+    }
+    if (companyNo != null && platoonNo != null && sectionNo != null) {
+      return 'C$companyNo/P$platoonNo/S$sectionNo';
+    }
+    if (companyNo != null && platoonNo != null) {
+      return 'Company $companyNo / Platoon $platoonNo';
+    }
+    if (companyNo != null) return 'Company $companyNo';
+    return 'Unassigned';
+  }
+
+  Member copyWith({
+    bool? isBrigadeOfficeChief,
+    bool? hasBrigadeOfficeAuthority,
+    UnitType? unitType,
+    int? companyNo,
+    int? platoonNo,
+    int? sectionNo,
+    List<int>? assignedPlatoons,
+    YouthGroup? youthGroup,
+    YouthGroupRole? youthGroupRole,
+    MemberStatus? status,
+  }) {
+    return Member(
+      id: id,
+      memberNo: memberNo,
+      nameEn: nameEn,
+      nameMm: nameMm,
+      rank: rank,
+      unitType: unitType ?? this.unitType,
+      companyNo: companyNo ?? this.companyNo,
+      platoonNo: platoonNo ?? this.platoonNo,
+      sectionNo: sectionNo ?? this.sectionNo,
+      status: status ?? this.status,
+      bloodType: bloodType,
+      joinDate: joinDate,
+      photoUrl: photoUrl,
+      phone: phone,
+      email: email,
+      address: address,
+      dateOfBirth: dateOfBirth,
+      emergencyContact: emergencyContact,
+      emergencyPhone: emergencyPhone,
+      skillIds: skillIds,
+      isChairperson: isChairperson,
+      isBrigadeOfficeChief: isBrigadeOfficeChief ?? this.isBrigadeOfficeChief,
+      hasBrigadeOfficeAuthority: hasBrigadeOfficeAuthority ?? this.hasBrigadeOfficeAuthority,
+      assignedPlatoons: assignedPlatoons ?? this.assignedPlatoons,
+      youthGroup: youthGroup ?? this.youthGroup,
+      youthGroupRole: youthGroupRole ?? this.youthGroupRole,
+      role: role,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────
-// SKILL MODEL
+// DUTY MEMBER MODEL
+// Tracks member's role within a specific duty
 // ─────────────────────────────────────────────
-class Skill {
-  final String id;
-  final String nameEn;
-  final String nameMm;
-  final String category;
-  final int? expiryMonths;
-
-  const Skill({
-    required this.id,
-    required this.nameEn,
-    required this.nameMm,
-    required this.category,
-    this.expiryMonths,
-  });
-}
-
-// ─────────────────────────────────────────────
-// MEMBER SKILL MODEL
-// ─────────────────────────────────────────────
-class MemberSkill {
-  final String id;
+class DutyMember {
   final String memberId;
-  final String skillId;
-  final String skillNameEn;
-  final DateTime acquiredDate;
-  final DateTime? expiryDate;
-  final String acquiredVia;
-  final bool isActive;
+  final DutyRoleInDuty roleInDuty;
+  final String? positionId;       // For large scale events
+  final DutyAssignmentStatus status;
+  final String? rejectionReason;
+  final DateTime? checkedInAt;
+  final DateTime assignedAt;
+  final DateTime? respondedAt;
 
-  const MemberSkill({
-    required this.id,
+  const DutyMember({
     required this.memberId,
-    required this.skillId,
-    required this.skillNameEn,
-    required this.acquiredDate,
-    this.expiryDate,
-    required this.acquiredVia,
-    required this.isActive,
+    required this.roleInDuty,
+    this.positionId,
+    required this.status,
+    this.rejectionReason,
+    this.checkedInAt,
+    required this.assignedAt,
+    this.respondedAt,
   });
+
+  bool get isCheckedIn => checkedInAt != null;
 }
 
 // ─────────────────────────────────────────────
-// DUTY MODEL
-// TimeOfDay removed — stored as int hours/minutes
-// to avoid Flutter dependency in pure data layer
+// DUTY MODEL — Updated
 // ─────────────────────────────────────────────
 class Duty {
   final String id;
   final String title;
   final String titleMm;
   final DutyType type;
+  final DutyScale scale;
   final DateTime date;
   final int startHour;
   final int startMinute;
   final int? endHour;
   final int? endMinute;
   final String location;
-  final String officerInChargeId;
-  final List<String> assignedMemberIds;
+  final List<DutyMember> members;
   final DutyStatus status;
   final String? description;
   final bool isEvent;
@@ -156,14 +208,14 @@ class Duty {
     required this.title,
     required this.titleMm,
     required this.type,
+    required this.scale,
     required this.date,
     required this.startHour,
     required this.startMinute,
     this.endHour,
     this.endMinute,
     required this.location,
-    required this.officerInChargeId,
-    required this.assignedMemberIds,
+    required this.members,
     required this.status,
     this.description,
     this.isEvent = false,
@@ -173,501 +225,29 @@ class Duty {
   String get startTimeDisplay =>
       '${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')}';
 
-  String get endTimeDisplay => (endHour != null && endMinute != null)
-      ? '${endHour!.toString().padLeft(2, '0')}:${endMinute!.toString().padLeft(2, '0')}'
-      : '';
+  List<DutyMember> get officers =>
+      members.where((m) => m.roleInDuty == DutyRoleInDuty.officer).toList();
+
+  DutyMember? get commander => members
+      .where((m) => m.roleInDuty == DutyRoleInDuty.commander)
+      .firstOrNull;
 
   String get typeDisplay {
     switch (type) {
-      case DutyType.firstAid:
-        return 'First Aid';
-      case DutyType.bloodDonation:
-        return 'Blood Donation';
-      case DutyType.training:
-        return 'Training';
-      case DutyType.patrol:
-        return 'Patrol';
-      case DutyType.eventMedical:
-        return 'Event Medical';
-      case DutyType.disaster:
-        return 'Disaster Response';
-      case DutyType.administrative:
-        return 'Administrative';
-      case DutyType.other:
-        return 'Other';
+      case DutyType.firstAid: return 'First Aid';
+      case DutyType.bloodDonation: return 'Blood Donation';
+      case DutyType.training: return 'Training';
+      case DutyType.patrol: return 'Patrol';
+      case DutyType.eventMedical: return 'Event Medical';
+      case DutyType.disaster: return 'Disaster Response';
+      case DutyType.administrative: return 'Administrative';
+      case DutyType.other: return 'Other';
     }
   }
 }
 
 // ─────────────────────────────────────────────
-// DUTY ASSIGNMENT MODEL
-// ─────────────────────────────────────────────
-class DutyAssignment {
-  final String id;
-  final String dutyId;
-  final String memberId;
-  final DutyAssignmentStatus status;
-  final String? rejectionReason;
-  final DateTime assignedAt;
-  final DateTime? respondedAt;
-
-  const DutyAssignment({
-    required this.id,
-    required this.dutyId,
-    required this.memberId,
-    required this.status,
-    this.rejectionReason,
-    required this.assignedAt,
-    this.respondedAt,
-  });
-}
-
-// ─────────────────────────────────────────────
-// MEMBER AVAILABILITY MODEL
-// ─────────────────────────────────────────────
-class MemberAvailability {
-  final String id;
-  final String memberId;
-  final DateTime date;
-  final AvailabilityStatus status;
-  final int? freeFromHour;
-  final int? freeFromMinute;
-  final int? freeToHour;
-  final int? freeToMinute;
-  final bool isAutoCopied;
-  final bool isConfirmed;
-
-  const MemberAvailability({
-    required this.id,
-    required this.memberId,
-    required this.date,
-    required this.status,
-    this.freeFromHour,
-    this.freeFromMinute,
-    this.freeToHour,
-    this.freeToMinute,
-    this.isAutoCopied = false,
-    this.isConfirmed = true,
-  });
-}
-
-// ─────────────────────────────────────────────
-// EVENT MODEL (Marathon, etc.)
-// ─────────────────────────────────────────────
-class MedicalEvent {
-  final String id;
-  final String title;
-  final String titleMm;
-  final String eventType;
-  final DateTime date;
-  final String location;
-  final bool hasMapPins;
-  final List<EventPosition> positions;
-  final DutyStatus status;
-  final String createdById;
-
-  const MedicalEvent({
-    required this.id,
-    required this.title,
-    required this.titleMm,
-    required this.eventType,
-    required this.date,
-    required this.location,
-    required this.hasMapPins,
-    required this.positions,
-    required this.status,
-    required this.createdById,
-  });
-}
-
-// ─────────────────────────────────────────────
-// EVENT POSITION MODEL
-// ─────────────────────────────────────────────
-class EventPosition {
-  final String id;
-  final String eventId;
-  final String nameEn;
-  final EventPositionType type;
-  final String locationDescription;
-  final double? latitude;
-  final double? longitude;
-  final int requiredMembers;
-  final List<String> assignedMemberIds;
-  final List<String> requiredSkillIds;
-  final List<String> equipmentIds;
-
-  const EventPosition({
-    required this.id,
-    required this.eventId,
-    required this.nameEn,
-    required this.type,
-    required this.locationDescription,
-    this.latitude,
-    this.longitude,
-    required this.requiredMembers,
-    required this.assignedMemberIds,
-    required this.requiredSkillIds,
-    required this.equipmentIds,
-  });
-
-  bool get isFilled => assignedMemberIds.length >= requiredMembers;
-
-  String get typeDisplay {
-    switch (type) {
-      case EventPositionType.base:
-        return 'Base';
-      case EventPositionType.point:
-        return 'Point';
-      case EventPositionType.patrol:
-        return 'Patrol';
-      case EventPositionType.standby:
-        return 'Standby';
-      case EventPositionType.command:
-        return 'Command';
-      case EventPositionType.liaison:
-        return 'Liaison';
-    }
-  }
-}
-
-// ─────────────────────────────────────────────
-// MEETING MODEL
-// ─────────────────────────────────────────────
-class Meeting {
-  final String id;
-  final String title;
-  final String titleMm;
-  final MeetingType type;
-  final DateTime date;
-  final int timeHour;
-  final int timeMinute;
-  final String location;
-  final List<String> invitedMemberIds;
-  final List<String> attendedMemberIds;
-  final String? agenda;
-  final String? minutes;
-  final MeetingStatus status;
-  final List<MeetingTask> tasks;
-  final DateTime? createdAt;
-
-  const Meeting({
-    required this.id,
-    required this.title,
-    required this.titleMm,
-    required this.type,
-    required this.date,
-    required this.timeHour,
-    required this.timeMinute,
-    required this.location,
-    required this.invitedMemberIds,
-    required this.attendedMemberIds,
-    this.agenda,
-    this.minutes,
-    required this.status,
-    required this.tasks,
-    this.createdAt,
-  });
-
-  String get timeDisplay =>
-      '${timeHour.toString().padLeft(2, '0')}:${timeMinute.toString().padLeft(2, '0')}';
-
-  String get typeDisplay {
-    switch (type) {
-      case MeetingType.general:
-        return 'General';
-      case MeetingType.officer:
-        return 'Officer';
-      case MeetingType.committee:
-        return 'Committee';
-      case MeetingType.investigation:
-        return 'Investigation';
-      case MeetingType.youthLeaders:
-        return 'Youth Leaders';
-      case MeetingType.youthGroup:
-        return 'Youth Group';
-      case MeetingType.custom:
-        return 'Custom';
-    }
-  }
-}
-
-// ─────────────────────────────────────────────
-// MEETING TASK MODEL
-// ─────────────────────────────────────────────
-class MeetingTask {
-  final String id;
-  final String meetingId;
-  final String title;
-  final String assignedMemberId;
-  final DateTime dueDate;
-  final bool isCompleted;
-  final DateTime? completedAt;
-  final bool isVerified;
-
-  const MeetingTask({
-    required this.id,
-    required this.meetingId,
-    required this.title,
-    required this.assignedMemberId,
-    required this.dueDate,
-    required this.isCompleted,
-    this.completedAt,
-    required this.isVerified,
-  });
-}
-
-// ─────────────────────────────────────────────
-// CLASS MODEL
-// ─────────────────────────────────────────────
-class TrainingClass {
-  final String id;
-  final String title;
-  final String titleMm;
-  final ClassType type;
-  final String category;
-  final String description;
-  final String instructorId;
-  final String instructorName;
-  final bool isExternalInstructor;
-  final DateTime startDate;
-  final DateTime endDate;
-  final String location;
-  final int maxParticipants;
-  final List<String> enrolledMemberIds;
-  final ClassStatus status;
-  final List<String> requiredSkillIds;
-  final List<String> awardedSkillIds;
-  final bool issuesCertificate;
-  final String? certificateTemplateId;
-  final bool hasCommittee;
-  final List<ClassCommitteeMember> committee;
-  final ClassBudget? budget;
-  final List<ClassSession> timetable;
-  final String? minRankRequired;
-
-  const TrainingClass({
-    required this.id,
-    required this.title,
-    required this.titleMm,
-    required this.type,
-    required this.category,
-    required this.description,
-    required this.instructorId,
-    required this.instructorName,
-    required this.isExternalInstructor,
-    required this.startDate,
-    required this.endDate,
-    required this.location,
-    required this.maxParticipants,
-    required this.enrolledMemberIds,
-    required this.status,
-    required this.requiredSkillIds,
-    required this.awardedSkillIds,
-    required this.issuesCertificate,
-    this.certificateTemplateId,
-    required this.hasCommittee,
-    required this.committee,
-    this.budget,
-    required this.timetable,
-    this.minRankRequired,
-  });
-
-  int get enrolledCount => enrolledMemberIds.length;
-  bool get isFull => enrolledCount >= maxParticipants;
-}
-
-// ─────────────────────────────────────────────
-// CLASS COMMITTEE MEMBER
-// ─────────────────────────────────────────────
-class ClassCommitteeMember {
-  final String memberId;
-  final String role;
-
-  const ClassCommitteeMember({
-    required this.memberId,
-    required this.role,
-  });
-}
-
-// ─────────────────────────────────────────────
-// CLASS SESSION MODEL
-// ─────────────────────────────────────────────
-class ClassSession {
-  final String id;
-  final String classId;
-  final int sessionNumber;
-  final String topic;
-  final DateTime date;
-  final int startHour;
-  final int startMinute;
-  final int endHour;
-  final int endMinute;
-  final String location;
-  final String? facilitator;
-  final String status;
-
-  const ClassSession({
-    required this.id,
-    required this.classId,
-    required this.sessionNumber,
-    required this.topic,
-    required this.date,
-    required this.startHour,
-    required this.startMinute,
-    required this.endHour,
-    required this.endMinute,
-    required this.location,
-    this.facilitator,
-    required this.status,
-  });
-
-  String get startTimeDisplay =>
-      '${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')}';
-
-  String get endTimeDisplay =>
-      '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
-}
-
-// ─────────────────────────────────────────────
-// CLASS BUDGET MODEL
-// ─────────────────────────────────────────────
-class ClassBudget {
-  final String id;
-  final String classId;
-  final double totalAmount;
-  final FundingSource fundingSource;
-  final String? fundingSourceName;
-  final Map<String, double> categoryAllocations;
-  final bool memberLunchAllowed;
-  final bool memberTravelAllowed;
-  final String approvalStatus;
-  final List<ClassExpense> expenses;
-
-  const ClassBudget({
-    required this.id,
-    required this.classId,
-    required this.totalAmount,
-    required this.fundingSource,
-    this.fundingSourceName,
-    required this.categoryAllocations,
-    required this.memberLunchAllowed,
-    required this.memberTravelAllowed,
-    required this.approvalStatus,
-    required this.expenses,
-  });
-
-  double get totalSpent => expenses
-      .where((e) => e.status == ExpenseStatus.approved)
-      .fold(0, (s, e) => s + e.amount);
-
-  double get remaining => totalAmount - totalSpent;
-}
-
-// ─────────────────────────────────────────────
-// CLASS EXPENSE MODEL
-// ─────────────────────────────────────────────
-class ClassExpense {
-  final String id;
-  final String classId;
-  final String category;
-  final double amount;
-  final DateTime date;
-  final String paidTo;
-  final String description;
-  final String? proofUrl;
-  final String loggedById;
-  final ExpenseStatus status;
-  final PaymentStatus paymentStatus;
-  final ReimbursementStatus? reimbursementStatus;
-  final String? reimbursementMemberId;
-
-  const ClassExpense({
-    required this.id,
-    required this.classId,
-    required this.category,
-    required this.amount,
-    required this.date,
-    required this.paidTo,
-    required this.description,
-    this.proofUrl,
-    required this.loggedById,
-    required this.status,
-    required this.paymentStatus,
-    this.reimbursementStatus,
-    this.reimbursementMemberId,
-  });
-}
-
-// ─────────────────────────────────────────────
-// BLOOD DONOR MODEL
-// ─────────────────────────────────────────────
-class BloodDonor {
-  final String id;
-  final String nameEn;
-  final String? nameMm;
-  final DonorType type;
-  final String? memberId;
-  final BloodType bloodType;
-  final DateTime? lastDonationDate;
-  final int totalDonations;
-  final String phone;
-  final bool isActive;
-
-  const BloodDonor({
-    required this.id,
-    required this.nameEn,
-    this.nameMm,
-    required this.type,
-    this.memberId,
-    required this.bloodType,
-    this.lastDonationDate,
-    required this.totalDonations,
-    required this.phone,
-    required this.isActive,
-  });
-
-  DateTime? get nextEligibleDate {
-    if (lastDonationDate == null) return null;
-    return lastDonationDate!.add(const Duration(days: 120));
-  }
-
-  bool get isEligible {
-    if (lastDonationDate == null) return true;
-    return DateTime.now().isAfter(nextEligibleDate!);
-  }
-
-  String get bloodTypeDisplay => _bloodTypeString(bloodType);
-}
-
-// ─────────────────────────────────────────────
-// DONATION RECORD MODEL
-// ─────────────────────────────────────────────
-class DonationRecord {
-  final String id;
-  final String donorId;
-  final DonationSource source;
-  final DateTime donationDate;
-  final String location;
-  final String? proofUrl;
-  final String loggedById;
-  final bool isApproved;
-  final String? approvedById;
-
-  const DonationRecord({
-    required this.id,
-    required this.donorId,
-    required this.source,
-    required this.donationDate,
-    required this.location,
-    this.proofUrl,
-    required this.loggedById,
-    required this.isApproved,
-    this.approvedById,
-  });
-}
-
-// ─────────────────────────────────────────────
-// INVESTIGATION MODEL
+// INVESTIGATION MODEL — Updated
 // ─────────────────────────────────────────────
 class Investigation {
   final String id;
@@ -675,11 +255,15 @@ class Investigation {
   final String title;
   final String description;
   final DateTime openedDate;
+  final DateTime? concludedDate;
   final InvestigationStatus status;
   final List<String> accusedMemberIds;
   final List<String> witnessMemberIds;
   final List<String> committeeMemberIds;
   final List<String> recusedMemberIds;
+  final List<String> appealCommitteeMemberIds;
+  final List<String> approvedSealedViewers; // Members approved to see sealed attachments
+  final Map<String, DateTime> committeeJoinDates; // memberId -> join date
   final List<InvestigationStageLog> stageLogs;
   final List<InvestigationAttachment> attachments;
   final String? outcome;
@@ -691,11 +275,15 @@ class Investigation {
     required this.title,
     required this.description,
     required this.openedDate,
+    this.concludedDate,
     required this.status,
     required this.accusedMemberIds,
     required this.witnessMemberIds,
     required this.committeeMemberIds,
     required this.recusedMemberIds,
+    required this.appealCommitteeMemberIds,
+    required this.approvedSealedViewers,
+    required this.committeeJoinDates,
     required this.stageLogs,
     required this.attachments,
     this.outcome,
@@ -704,26 +292,16 @@ class Investigation {
 
   int get currentStageIndex {
     switch (status) {
-      case InvestigationStatus.opened:
-        return 0;
-      case InvestigationStatus.underInvestigation:
-        return 1;
-      case InvestigationStatus.hearingScheduled:
-        return 2;
-      case InvestigationStatus.hearingConducted:
-        return 3;
-      case InvestigationStatus.deliberation:
-        return 4;
-      case InvestigationStatus.concluded:
-        return 5;
-      case InvestigationStatus.closed:
-        return 6;
-      case InvestigationStatus.appealed:
-        return 7;
-      case InvestigationStatus.appealReview:
-        return 8;
-      case InvestigationStatus.appealConcluded:
-        return 9;
+      case InvestigationStatus.opened: return 0;
+      case InvestigationStatus.underInvestigation: return 1;
+      case InvestigationStatus.hearingScheduled: return 2;
+      case InvestigationStatus.hearingConducted: return 3;
+      case InvestigationStatus.deliberation: return 4;
+      case InvestigationStatus.concluded: return 5;
+      case InvestigationStatus.closed: return 6;
+      case InvestigationStatus.appealed: return 7;
+      case InvestigationStatus.appealReview: return 8;
+      case InvestigationStatus.appealConcluded: return 9;
     }
   }
 }
@@ -806,22 +384,457 @@ class Punishment {
 
   String get typeDisplay {
     switch (type) {
-      case PunishmentType.verbalWarning:
-        return 'Verbal Warning';
-      case PunishmentType.writtenWarning:
-        return 'Written Warning';
-      case PunishmentType.fine:
-        return 'Fine';
-      case PunishmentType.suspension:
-        return 'Suspension';
-      case PunishmentType.demotion:
-        return 'Demotion';
-      case PunishmentType.dismissal:
-        return 'Dismissal';
-      case PunishmentType.other:
-        return 'Other';
+      case PunishmentType.verbalWarning: return 'Verbal Warning';
+      case PunishmentType.writtenWarning: return 'Written Warning';
+      case PunishmentType.fine: return 'Fine';
+      case PunishmentType.suspension: return 'Suspension';
+      case PunishmentType.demotion: return 'Demotion';
+      case PunishmentType.dismissal: return 'Dismissal';
+      case PunishmentType.other: return 'Other';
     }
   }
+}
+
+// ─────────────────────────────────────────────
+// SKILL MODEL
+// ─────────────────────────────────────────────
+class Skill {
+  final String id;
+  final String nameEn;
+  final String nameMm;
+  final String category;
+  final int? expiryMonths;
+
+  const Skill({
+    required this.id,
+    required this.nameEn,
+    required this.nameMm,
+    required this.category,
+    this.expiryMonths,
+  });
+}
+
+// ─────────────────────────────────────────────
+// MEMBER AVAILABILITY MODEL
+// ─────────────────────────────────────────────
+class MemberAvailability {
+  final String id;
+  final String memberId;
+  final DateTime date;
+  final AvailabilityStatus status;
+  final int? freeFromHour;
+  final int? freeFromMinute;
+  final int? freeToHour;
+  final int? freeToMinute;
+  final bool isAutoCopied;
+  final bool isConfirmed;
+
+  const MemberAvailability({
+    required this.id,
+    required this.memberId,
+    required this.date,
+    required this.status,
+    this.freeFromHour,
+    this.freeFromMinute,
+    this.freeToHour,
+    this.freeToMinute,
+    this.isAutoCopied = false,
+    this.isConfirmed = true,
+  });
+}
+
+// ─────────────────────────────────────────────
+// EVENT POSITION MODEL
+// ─────────────────────────────────────────────
+class EventPosition {
+  final String id;
+  final String eventId;
+  final String nameEn;
+  final EventPositionType type;
+  final String locationDescription;
+  final double? latitude;
+  final double? longitude;
+  final int requiredMembers;
+  final List<String> assignedMemberIds;
+  final List<String> requiredSkillIds;
+  final List<String> equipmentIds;
+
+  const EventPosition({
+    required this.id,
+    required this.eventId,
+    required this.nameEn,
+    required this.type,
+    required this.locationDescription,
+    this.latitude,
+    this.longitude,
+    required this.requiredMembers,
+    required this.assignedMemberIds,
+    required this.requiredSkillIds,
+    required this.equipmentIds,
+  });
+
+  bool get isFilled => assignedMemberIds.length >= requiredMembers;
+
+  String get typeDisplay {
+    switch (type) {
+      case EventPositionType.base: return 'Base';
+      case EventPositionType.point: return 'Point';
+      case EventPositionType.patrol: return 'Patrol';
+      case EventPositionType.standby: return 'Standby';
+      case EventPositionType.command: return 'Command';
+      case EventPositionType.liaison: return 'Liaison';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// MEETING MODEL
+// ─────────────────────────────────────────────
+class Meeting {
+  final String id;
+  final String title;
+  final String titleMm;
+  final MeetingType type;
+  final DateTime date;
+  final int timeHour;
+  final int timeMinute;
+  final String location;
+  final List<String> invitedMemberIds;
+  final List<String> attendedMemberIds;
+  final MemberRank? minimumRank;
+  final String? agenda;
+  final String? minutes;
+  final MeetingStatus status;
+  final List<MeetingTask> tasks;
+  final DateTime? createdAt;
+
+  const Meeting({
+    required this.id,
+    required this.title,
+    required this.titleMm,
+    required this.type,
+    required this.date,
+    required this.timeHour,
+    required this.timeMinute,
+    required this.location,
+    required this.invitedMemberIds,
+    required this.attendedMemberIds,
+    this.minimumRank,
+    this.agenda,
+    this.minutes,
+    required this.status,
+    required this.tasks,
+    this.createdAt,
+  });
+
+  String get timeDisplay =>
+      '${timeHour.toString().padLeft(2, '0')}:${timeMinute.toString().padLeft(2, '0')}';
+
+  String get typeDisplay {
+    switch (type) {
+      case MeetingType.general: return 'General';
+      case MeetingType.officer: return 'Officer';
+      case MeetingType.committee: return 'Committee';
+      case MeetingType.investigation: return 'Investigation';
+      case MeetingType.youthLeaders: return 'Youth Leaders';
+      case MeetingType.youthGroup: return 'Youth Group';
+      case MeetingType.custom: return 'Custom';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// MEETING TASK MODEL
+// ─────────────────────────────────────────────
+class MeetingTask {
+  final String id;
+  final String meetingId;
+  final String title;
+  final String assignedMemberId;
+  final DateTime dueDate;
+  final bool isCompleted;
+  final DateTime? completedAt;
+  final bool isVerified;
+
+  const MeetingTask({
+    required this.id,
+    required this.meetingId,
+    required this.title,
+    required this.assignedMemberId,
+    required this.dueDate,
+    required this.isCompleted,
+    this.completedAt,
+    required this.isVerified,
+  });
+}
+
+// ─────────────────────────────────────────────
+// TRAINING CLASS MODEL
+// ─────────────────────────────────────────────
+class TrainingClass {
+  final String id;
+  final String title;
+  final String titleMm;
+  final ClassType type;
+  final String category;
+  final String description;
+  final String instructorId;
+  final String instructorName;
+  final bool isExternalInstructor;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String location;
+  final int maxParticipants;
+  final List<String> enrolledMemberIds;
+  final ClassStatus status;
+  final List<String> requiredSkillIds;
+  final List<String> awardedSkillIds;
+  final bool issuesCertificate;
+  final String? certificateTemplateId;
+  final bool hasCommittee;
+  final List<ClassCommitteeMember> committee;
+  final ClassBudget? budget;
+  final List<ClassSession> timetable;
+  final String? minRankRequired;
+
+  const TrainingClass({
+    required this.id,
+    required this.title,
+    required this.titleMm,
+    required this.type,
+    required this.category,
+    required this.description,
+    required this.instructorId,
+    required this.instructorName,
+    required this.isExternalInstructor,
+    required this.startDate,
+    required this.endDate,
+    required this.location,
+    required this.maxParticipants,
+    required this.enrolledMemberIds,
+    required this.status,
+    required this.requiredSkillIds,
+    required this.awardedSkillIds,
+    required this.issuesCertificate,
+    this.certificateTemplateId,
+    required this.hasCommittee,
+    required this.committee,
+    this.budget,
+    required this.timetable,
+    this.minRankRequired,
+  });
+
+  int get enrolledCount => enrolledMemberIds.length;
+  bool get isFull => enrolledCount >= maxParticipants;
+
+  String? get committeeChairpersonId {
+    try {
+      return committee
+          .firstWhere((m) => m.role == 'Committee Head')
+          .memberId;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// CLASS COMMITTEE MEMBER
+// ─────────────────────────────────────────────
+class ClassCommitteeMember {
+  final String memberId;
+  final String role;
+
+  const ClassCommitteeMember({
+    required this.memberId,
+    required this.role,
+  });
+}
+
+// ─────────────────────────────────────────────
+// CLASS SESSION MODEL
+// ─────────────────────────────────────────────
+class ClassSession {
+  final String id;
+  final String classId;
+  final int sessionNumber;
+  final String topic;
+  final DateTime date;
+  final int startHour;
+  final int startMinute;
+  final int endHour;
+  final int endMinute;
+  final String location;
+  final String? facilitator;
+  final String status;
+
+  const ClassSession({
+    required this.id,
+    required this.classId,
+    required this.sessionNumber,
+    required this.topic,
+    required this.date,
+    required this.startHour,
+    required this.startMinute,
+    required this.endHour,
+    required this.endMinute,
+    required this.location,
+    this.facilitator,
+    required this.status,
+  });
+
+  String get startTimeDisplay =>
+      '${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')}';
+  String get endTimeDisplay =>
+      '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
+}
+
+// ─────────────────────────────────────────────
+// CLASS BUDGET MODEL
+// ─────────────────────────────────────────────
+class ClassBudget {
+  final String id;
+  final String classId;
+  final double totalAmount;
+  final FundingSource fundingSource;
+  final String? fundingSourceName;
+  final Map<String, double> categoryAllocations;
+  final bool memberLunchAllowed;
+  final bool memberTravelAllowed;
+  final String approvalStatus;
+  final List<ClassExpense> expenses;
+
+  const ClassBudget({
+    required this.id,
+    required this.classId,
+    required this.totalAmount,
+    required this.fundingSource,
+    this.fundingSourceName,
+    required this.categoryAllocations,
+    required this.memberLunchAllowed,
+    required this.memberTravelAllowed,
+    required this.approvalStatus,
+    required this.expenses,
+  });
+
+  double get totalSpent => expenses
+      .where((e) => e.status == ExpenseStatus.approved)
+      .fold(0, (s, e) => s + e.amount);
+  double get remaining => totalAmount - totalSpent;
+}
+
+// ─────────────────────────────────────────────
+// CLASS EXPENSE MODEL
+// ─────────────────────────────────────────────
+class ClassExpense {
+  final String id;
+  final String classId;
+  final String category;
+  final double amount;
+  final DateTime date;
+  final String paidTo;
+  final String description;
+  final String? proofUrl;
+  final String loggedById;
+  final ExpenseStatus status;
+  final PaymentStatus paymentStatus;
+  final ReimbursementStatus? reimbursementStatus;
+  final String? reimbursementMemberId;
+
+  const ClassExpense({
+    required this.id,
+    required this.classId,
+    required this.category,
+    required this.amount,
+    required this.date,
+    required this.paidTo,
+    required this.description,
+    this.proofUrl,
+    required this.loggedById,
+    required this.status,
+    required this.paymentStatus,
+    this.reimbursementStatus,
+    this.reimbursementMemberId,
+  });
+}
+
+// ─────────────────────────────────────────────
+// BLOOD DONOR MODEL
+// ─────────────────────────────────────────────
+class BloodDonor {
+  final String id;
+  final String nameEn;
+  final String? nameMm;
+  final DonorType type;
+  final String? memberId;
+  final BloodType bloodType;
+  final DateTime? lastDonationDate;
+  final int totalDonations;
+  final String phone;
+  final bool isActive;
+
+  const BloodDonor({
+    required this.id,
+    required this.nameEn,
+    this.nameMm,
+    required this.type,
+    this.memberId,
+    required this.bloodType,
+    this.lastDonationDate,
+    required this.totalDonations,
+    required this.phone,
+    required this.isActive,
+  });
+
+  DateTime? get nextEligibleDate {
+    if (lastDonationDate == null) return null;
+    return lastDonationDate!.add(const Duration(days: 120));
+  }
+
+  bool get isEligible {
+    if (lastDonationDate == null) return true;
+    return DateTime.now().isAfter(nextEligibleDate!);
+  }
+
+  String get bloodTypeDisplay {
+    switch (bloodType) {
+      case BloodType.OP: return 'O+';
+      case BloodType.OM: return 'O-';
+      case BloodType.AP: return 'A+';
+      case BloodType.AM: return 'A-';
+      case BloodType.BP: return 'B+';
+      case BloodType.BM: return 'B-';
+      case BloodType.ABP: return 'AB+';
+      case BloodType.ABM: return 'AB-';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// DONATION RECORD MODEL
+// ─────────────────────────────────────────────
+class DonationRecord {
+  final String id;
+  final String donorId;
+  final DonationSource source;
+  final DateTime donationDate;
+  final String location;
+  final String? proofUrl;
+  final String loggedById;
+  final bool isApproved;
+  final String? approvedById;
+
+  const DonationRecord({
+    required this.id,
+    required this.donorId,
+    required this.source,
+    required this.donationDate,
+    required this.location,
+    this.proofUrl,
+    required this.loggedById,
+    required this.isApproved,
+    this.approvedById,
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -852,14 +865,10 @@ class TransferHistory {
 
   String get typeDisplay {
     switch (type) {
-      case TransferType.promotion:
-        return 'Promotion';
-      case TransferType.demotion:
-        return 'Demotion';
-      case TransferType.transfer:
-        return 'Transfer';
-      case TransferType.reinstatement:
-        return 'Reinstatement';
+      case TransferType.promotion: return 'Promotion';
+      case TransferType.demotion: return 'Demotion';
+      case TransferType.transfer: return 'Transfer';
+      case TransferType.reinstatement: return 'Reinstatement';
     }
   }
 }
@@ -954,12 +963,14 @@ class Equipment {
 // ─────────────────────────────────────────────
 class FundEntry {
   final String id;
-  final String type; // income / expenditure
+  final String type;
   final String description;
   final double amount;
   final DateTime date;
   final String category;
   final String recordedById;
+  final String? approvedById;
+  final bool needsApproval;
   final String? classId;
   final String? referenceNo;
 
@@ -971,6 +982,8 @@ class FundEntry {
     required this.date,
     required this.category,
     required this.recordedById,
+    this.approvedById,
+    required this.needsApproval,
     this.classId,
     this.referenceNo,
   });
@@ -1016,7 +1029,7 @@ class DispatchRecord {
   final DateTime startDate;
   final DateTime endDate;
   final List<String> dispatchedMemberIds;
-  final String status;
+  final DispatchStatus status;
   final int? quota;
 
   const DispatchRecord({

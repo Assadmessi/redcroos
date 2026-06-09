@@ -207,7 +207,7 @@ class _StatsGrid extends StatelessWidget {
         crossAxisCount: cols,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: isDesktop ? 1.8 : 1.1,
+        childAspectRatio: isDesktop ? 1.8 : 1.5,
       ),
       itemCount: stats.length,
       itemBuilder: (_, i) => _StatCard(data: stats[i]),
@@ -331,21 +331,12 @@ class _DutyTile extends StatelessWidget {
 
   const _DutyTile({required this.duty, required this.isEN});
 
-  Color get _typeColor {
-    switch (duty.type) {
-      case DutyType.firstAid: return AppColors.error;
-      case DutyType.bloodDonation: return AppColors.error;
-      case DutyType.training: return AppColors.info;
-      case DutyType.eventMedical: return AppColors.warning;
-      default: return AppColors.grey600;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final assignment = MockDutyAssignments.forDutyAndMember(
-        duty.id, auth.currentMember?.id ?? '');
+    final assignment = duty.members
+        .where((m) => m.memberId == (auth.currentMember?.id ?? ''))
+        .firstOrNull;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

@@ -188,10 +188,10 @@ class _Sidebar extends StatelessWidget {
               children: _navItems.map((item) {
                 // Hide restricted items based on role
                 if (item.requiresPermission) {
-                  if (item.id == 'investigation' && !auth.canViewInvestigations) {
+                  if (item.id == 'investigation' && !auth.isBrigadeWide) {
                     return const SizedBox.shrink();
                   }
-                  if (item.id == 'fund' && !auth.canManageFund) {
+                  if (item.id == 'fund' && !auth.canViewFund) {
                     return const SizedBox.shrink();
                   }
                 }
@@ -339,12 +339,12 @@ class _SidebarItem extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.primary.withOpacity(0.15)
+                ? AppColors.primary.withValues(alpha: 0.15)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
             border: isSelected
                 ? Border.all(
-                    color: AppColors.primary.withOpacity(0.3), width: 1)
+                    color: AppColors.primary.withValues(alpha: 0.3), width: 1)
                 : null,
           ),
           child: Row(
@@ -717,10 +717,10 @@ class _MobileDrawer extends StatelessWidget {
                 children: _navItems.map((item) {
                   if (item.requiresPermission) {
                     if (item.id == 'investigation' &&
-                        !auth.canViewInvestigations) {
+                        !auth.isBrigadeWide) {
                       return const SizedBox.shrink();
                     }
-                    if (item.id == 'fund' && !auth.canManageFund) {
+                    if (item.id == 'fund' && !auth.canViewFund) {
                       return const SizedBox.shrink();
                     }
                   }
@@ -746,7 +746,7 @@ class _MobileDrawer extends StatelessWidget {
                       ),
                     ),
                     tileColor: isSelected
-                        ? AppColors.primary.withOpacity(0.1)
+                        ? AppColors.primary.withValues(alpha: 0.1)
                         : null,
                     shape: RoundedRectangleBorder(
                       borderRadius:
@@ -906,7 +906,7 @@ class _Avatar extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

@@ -46,7 +46,6 @@ class RedCrossApp extends StatelessWidget {
         Locale('en', 'US'),
         Locale('my', 'MM'),
       ],
-      // Route based on auth state
       home: auth.isLoggedIn ? const AppShell() : const LoginScreen(),
     );
   }

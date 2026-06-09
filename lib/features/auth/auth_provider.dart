@@ -2,18 +2,32 @@ import 'package:flutter/material.dart';
 import '../../data/mock/mock_data.dart';
 import '../../data/models/models.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/permission_service.dart';
 
 // ─────────────────────────────────────────────
 // MOCK CREDENTIALS
-// Replace with real Supabase auth later
+// memberNo → password, memberId
 // ─────────────────────────────────────────────
 const _mockCredentials = {
-  'RC-001': {'password': '1234', 'memberId': 'm1'}, // Senior Officer
-  'RC-002': {'password': '1234', 'memberId': 'm2'}, // Officer
-  'RC-003': {'password': '1234', 'memberId': 'm3'}, // Duty Officer
-  'RC-004': {'password': '1234', 'memberId': 'm4'}, // Member
-  'RC-005': {'password': '1234', 'memberId': 'm5'}, // Member
-  'admin':  {'password': 'admin123', 'memberId': 'm1'}, // Quick admin login
+  // Brigade Office
+  'RC-001': {'password': '1234', 'memberId': 'm1'}, // Brigade Commander
+  'RC-002': {'password': '1234', 'memberId': 'm2'}, // Deputy Brigade Commander
+  'RC-003': {'password': '1234', 'memberId': 'm3'}, // Brigade Office Chief (Company Commander)
+  'RC-006': {'password': '1234', 'memberId': 'm6'}, // Warrant Officer (Brigade Office)
+  'RC-007': {'password': '1234', 'memberId': 'm7'}, // Sergeant Clerk (Brigade Office)
+
+  // Company 1
+  'RC-101': {'password': '1234', 'memberId': 'm101'}, // Company Commander C1
+  'RC-102': {'password': '1234', 'memberId': 'm102'}, // Deputy Company Commander C1
+  'RC-103': {'password': '1234', 'memberId': 'm103'}, // Platoon Leader C1/P1
+  'RC-104': {'password': '1234', 'memberId': 'm104'}, // Section Leader C1/P1/S1
+  'RC-105': {'password': '1234', 'memberId': 'm105'}, // Private C1/P1/S1
+
+  // Quick logins for testing
+  'admin':   {'password': 'admin123', 'memberId': 'm1'},
+  'chief':   {'password': 'chief123', 'memberId': 'm3'},
+  'company': {'password': '1234', 'memberId': 'm101'},
+  'private': {'password': '1234', 'memberId': 'm105'},
 };
 
 class AuthProvider extends ChangeNotifier {
@@ -27,36 +41,119 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   AppLanguage get language => _language;
+  bool get isEnglish => _language == AppLanguage.english;
 
-  // Role permission helpers
-  bool get isAdmin => _currentMember?.role == UserRole.admin;
-  bool get isTopBrass => _currentMember?.role == UserRole.topBrass;
-  bool get isSeniorOfficer => _currentMember?.role == UserRole.seniorOfficer;
-  bool get isOfficer => _currentMember?.role == UserRole.officer;
-  bool get isDutyOfficer => _currentMember?.role == UserRole.dutyOfficer;
-  bool get isMember => _currentMember?.role == UserRole.member;
+  // ─── PERMISSION SHORTCUTS ────────────────
+  bool get canAssignDuties => canAssignDuty;
+  bool get canViewInvestigations => isBrigadeWide;
+  bool get canManageFund => canViewFund;
+  
+  bool get hasMasterAccess =>
+      _currentMember != null &&
+      PermissionService.hasMasterAccess(_currentMember!);
 
-  bool get canManageMembers =>
-      isAdmin || isTopBrass || isSeniorOfficer;
+  UnitScope get unitScope =>
+      _currentMember != null
+          ? PermissionService.getUnitScope(_currentMember!)
+          : UnitScope.ownOnly;
 
-  bool get canAssignDuties =>
-      isAdmin || isTopBrass || isSeniorOfficer || isOfficer || isDutyOfficer;
+  bool get isBrigadeWide => unitScope == UnitScope.brigadWide;
 
-  bool get canApproveReports =>
-      isAdmin || isTopBrass || isSeniorOfficer || isOfficer;
+  bool get canGenerateReports =>
+      _currentMember != null &&
+      PermissionService.canGenerateReports(_currentMember!);
 
-  bool get canViewInvestigations =>
-      isAdmin || isTopBrass || isSeniorOfficer;
+  bool get canViewFund =>
+      _currentMember != null &&
+      PermissionService.canViewFund(_currentMember!);
 
-  bool get canViewPunishments =>
-      isAdmin || isTopBrass || isSeniorOfficer || isOfficer;
+  bool get canEditFund =>
+      _currentMember != null &&
+      PermissionService.canEditFundDirectly(_currentMember!);
 
-  bool get canManageFund =>
-      isAdmin || isTopBrass;
+  bool get canSubmitFundForApproval =>
+      _currentMember != null &&
+      PermissionService.canSubmitFundForApproval(_currentMember!);
 
-  bool get canIssueInvestigation =>
-      isAdmin || isTopBrass || isSeniorOfficer;
+  bool get canViewSettings =>
+      _currentMember != null &&
+      PermissionService.canViewSettings(_currentMember!);
 
+  bool get canAssignDuty =>
+      _currentMember != null &&
+      PermissionService.canAssignDuty(_currentMember!);
+
+  bool get canCreateDispatch =>
+      _currentMember != null &&
+      PermissionService.canCreateDispatch(_currentMember!);
+
+  bool get canConfirmDispatch =>
+      _currentMember != null &&
+      PermissionService.canConfirmDispatch(_currentMember!);
+
+  bool get canTriggerEmergencySearch =>
+      _currentMember != null &&
+      PermissionService.canTriggerEmergencySearch(_currentMember!);
+
+  bool get canApproveYouthReport =>
+      _currentMember != null &&
+      PermissionService.canApproveYouthReport(_currentMember!);
+
+  bool get isOfficer =>
+      _currentMember != null &&
+      RankHelper.isOfficerRank(_currentMember!.rank);
+
+  bool get canViewArchive =>
+      _currentMember != null &&
+      PermissionService.canViewArchive(_currentMember!);
+
+  // Member-specific checks
+  bool canViewMember(Member target) =>
+      _currentMember != null &&
+      PermissionService.canViewMember(_currentMember!, target);
+
+  bool canManageMember(Member target) =>
+      _currentMember != null &&
+      PermissionService.canManageMember(_currentMember!, target);
+
+  bool canViewInvestigation(Investigation investigation) =>
+      _currentMember != null &&
+      PermissionService.canViewInvestigation(_currentMember!, investigation);
+
+  bool canManageInvestigation(Investigation investigation) =>
+      _currentMember != null &&
+      PermissionService.canManageInvestigation(_currentMember!, investigation);
+
+  bool canViewSealedAttachment(Investigation investigation) =>
+      _currentMember != null &&
+      PermissionService.canViewSealedAttachment(_currentMember!, investigation);
+
+  bool canViewPunishment(
+    Punishment punishment,
+    Member punishedMember,
+    Investigation? relatedInvestigation,
+  ) =>
+      _currentMember != null &&
+      PermissionService.canViewPunishmentWithTarget(
+        _currentMember!,
+        punishment,
+        punishedMember,
+        relatedInvestigation,
+      );
+
+  bool canViewCertificate(Member owner) =>
+      _currentMember != null &&
+      PermissionService.canViewCertificate(_currentMember!, owner);
+
+  bool canViewBloodDonors() =>
+      _currentMember != null &&
+      PermissionService.canViewBloodDonors(_currentMember!);
+
+  bool canEditBloodDonors() =>
+      _currentMember != null &&
+      PermissionService.canEditBloodDonors(_currentMember!);
+
+  // ─── LANGUAGE ────────────────────────────
   void toggleLanguage() {
     _language = _language == AppLanguage.english
         ? AppLanguage.burmese
@@ -64,16 +161,19 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String tr(String en, String mm) =>
+      _language == AppLanguage.english ? en : mm;
+
+  // ─── LOGIN ───────────────────────────────
   Future<bool> login(String memberNo, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 800));
 
-    final credentials = _mockCredentials[memberNo.trim().toUpperCase()] ??
-        _mockCredentials[memberNo.trim()];
+    final key = memberNo.trim().toUpperCase();
+    final credentials = _mockCredentials[key] ?? _mockCredentials[memberNo.trim()];
 
     if (credentials == null) {
       _error = 'Member ID not found';

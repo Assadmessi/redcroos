@@ -160,10 +160,7 @@ class AppTextStyles {
     Color color = AppColors.grey700,
   }) {
     return TextStyle(
-      // Padauk font used when available (add to assets/fonts/ to enable)
-      // Falls back to system font which supports Burmese on iOS/Android/macOS
       fontFamily: 'Padauk',
-      fontFamilyFallback: const ['Myanmar Text', 'Pyidaungsu', 'sans-serif'],
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -296,7 +293,7 @@ class AppShadows {
 
   static List<BoxShadow> primary = [
     BoxShadow(
-      color: AppColors.primary.withOpacity(0.25),
+      color: AppColors.primary.withValues(alpha: 0.25),
       blurRadius: 12, offset: const Offset(0, 4),
     ),
   ];
