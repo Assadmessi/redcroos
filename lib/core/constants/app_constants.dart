@@ -102,13 +102,14 @@ class AppStrings {
   AppStrings._();
 
   // App
-  static const String appName           = 'Botahtaung Township Red Cross Brigade';
-  static const String appNameMM         = 'ဗိုလ်တထောင်မြို့နယ် ကြက်ခြေနီ တပ်ဖွဲ့ခွဲ';
-  static const String appTagline        = 'Brigade Management System';
-  static const String appTaglineMM      = 'တပ်ဖွဲ့ခွဲ စီမံခန့်ခွဲမှု စနစ်';
+  static const String appName           = 'Red Cross Branch';
+  static const String appNameMM         = 'ကြက်ခြေနီ';
+  static const String appTagline        = 'Branch Management System';
+  static const String appTaglineMM      = 'ဌာနခွဲ စီမံခန့်ခွဲမှု စနစ်';
   static const String organization      = 'Myanmar Red Cross Society';
   static const String organizationMM    = 'မြန်မာနိုင်ငံကြက်ခြေနီအသင်း';
-      // Replace with real branch name MM
+  static const String branch            = 'Main Branch';    // Replace with real branch name
+  static const String branchMM          = 'ဌာနချုပ်';        // Replace with real branch name MM
 
   // Auth
   static const String login             = 'Sign In';

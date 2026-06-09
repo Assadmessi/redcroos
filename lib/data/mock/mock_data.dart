@@ -1,7 +1,5 @@
 import '../models/models.dart';
 import '../../core/constants/app_constants.dart';
-
-// ─────────────────────────────────────────────
 // MOCK SKILLS
 // ─────────────────────────────────────────────
 class MockSkills {

@@ -328,7 +328,6 @@ class _SidebarItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: collapsed ? (isEN ? item.labelEn : item.labelMm) : '',
-      placement: TooltipPlacement.right,
       child: InkWell(
         onTap: onTap,
         child: AnimatedContainer(

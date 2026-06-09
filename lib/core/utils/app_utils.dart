@@ -13,9 +13,10 @@ class AppFormatters {
   static String dateShort(DateTime date) => DateFormat('dd MMM').format(date);
   static String dateTime(DateTime date) => DateFormat('dd MMM yyyy, HH:mm').format(date);
   static String monthYear(DateTime date) => DateFormat('MMMM yyyy').format(date);
-  static String time(int hour, int minute) => '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';;
-  static String timeRange(int sh, int sm, int? eh, int? em) => (eh != null && em != null) ? '${time(sh,sm)} — ${time(eh,em)}' : time(sh, sm);
-      end != null ? '${time(start)} — ${time(end)}' : time(start);
+  static String time(int hour, int minute) =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  static String timeRange(int sh, int sm, int? eh, int? em) =>
+      (eh != null && em != null) ? '${time(sh, sm)} — ${time(eh, em)}' : time(sh, sm);
   static String dayOfWeek(DateTime date) => DateFormat('EEEE').format(date);
   static String fullDate(DateTime date) => DateFormat('EEEE, dd MMMM yyyy').format(date);
   static String timeAgo(DateTime date) {
@@ -28,7 +29,7 @@ class AppFormatters {
   }
 
   static String currency(double amount) =>
-      NumberFormat('#,##0', 'en_US').format(amount) + ' MMK';
+      '${NumberFormat('#,##0', 'en_US').format(amount)} MMK';
 
   static String number(int n) => NumberFormat('#,##0').format(n);
 }
@@ -263,7 +264,8 @@ class AppResponsive {
       MediaQuery.of(context).size.width >= 1024;
 
   static bool isTablet(BuildContext context) =>
-      MediaQuery.of(context).size.width >= 600 && MediaQuery.of(context).size.width < 1024;
+      MediaQuery.of(context).size.width >= 600 &&
+      MediaQuery.of(context).size.width < 1024;
 
   static bool isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 600;
@@ -271,7 +273,8 @@ class AppResponsive {
   static double sidebarWidth(BuildContext context) =>
       isDesktop(context) ? AppDimensions.sidebarWidth : 0;
 
-  static int gridColumns(BuildContext context, {int desktop = 4, int tablet = 2, int mobile = 1}) {
+  static int gridColumns(BuildContext context,
+      {int desktop = 4, int tablet = 2, int mobile = 1}) {
     if (isDesktop(context)) return desktop;
     if (isTablet(context)) return tablet;
     return mobile;
@@ -296,14 +299,16 @@ class AppValidators {
   }
 
   static String? email(String? value) {
-    if (value == null || value.trim().isEmpty) return null; // optional
+    if (value == null || value.trim().isEmpty) return null;
     final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!regex.hasMatch(value)) return 'Invalid email address';
     return null;
   }
 
   static String? minLength(String? value, int min) {
-    if (value == null || value.length < min) return 'Minimum $min characters required';
+    if (value == null || value.length < min) {
+      return 'Minimum $min characters required';
+    }
     return null;
   }
 }
