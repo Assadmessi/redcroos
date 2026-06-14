@@ -33,77 +33,85 @@ class DashboardScreen extends StatelessWidget {
         .where((i) => i.status != InvestigationStatus.closed)
         .length;
 
-    return Container(
-      color: AppColors.background,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(isDesktop ? 28 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Greeting
-            _GreetingHeader(member: member, isEN: isEN),
-            SizedBox(height: isDesktop ? 24 : 16),
+ return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          color: AppColors.background,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(isDesktop ? 28 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Greeting
+                _GreetingHeader(member: member, isEN: isEN),
+                SizedBox(height: isDesktop ? 24 : 16),
 
-            // Stats grid
-            _StatsGrid(
-              isDesktop: isDesktop,
-              eligibleDonors: eligibleDonors,
-              activeCases: activeCases,
-              upcomingDuties: upcomingDuties.length,
-            ),
-            SizedBox(height: isDesktop ? 24 : 16),
+                // Stats grid
+                _StatsGrid(
+                  isDesktop: isDesktop,
+                  eligibleDonors: eligibleDonors,
+                  activeCases: activeCases,
+                  upcomingDuties: upcomingDuties.length,
+                ),
+                SizedBox(height: isDesktop ? 24 : 16),
 
-            // Main content
-            isDesktop
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
+                // Main content
+                isDesktop
+                    ? IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _UpcomingDutiesCard(duties: upcomingDuties, isEN: isEN),
-                            const SizedBox(height: 20),
-                            _RecentMeetingsCard(meetings: recentMeetings, isEN: isEN),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            _NotificationsCard(
-                              notifications: notifications,
-                              unread: unreadCount,
-                              isEN: isEN,
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                children: [
+                                  _UpcomingDutiesCard(duties: upcomingDuties, isEN: isEN),
+                                  const SizedBox(height: 20),
+                                  _RecentMeetingsCard(meetings: recentMeetings, isEN: isEN),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 20),
-                            _QuickActionsCard(isEN: isEN, auth: auth),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                children: [
+                                  _NotificationsCard(
+                                    notifications: notifications,
+                                    unread: unreadCount,
+                                    isEN: isEN,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _QuickActionsCard(isEN: isEN, auth: auth),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
+                      )
+                    : Column(
+                        children: [
+                          _UpcomingDutiesCard(duties: upcomingDuties, isEN: isEN),
+                          const SizedBox(height: 16),
+                          _NotificationsCard(
+                            notifications: notifications,
+                            unread: unreadCount,
+                            isEN: isEN,
+                          ),
+                          const SizedBox(height: 16),
+                          _RecentMeetingsCard(meetings: recentMeetings, isEN: isEN),
+                          const SizedBox(height: 16),
+                          _QuickActionsCard(isEN: isEN, auth: auth),
+                        ],
                       ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      _UpcomingDutiesCard(duties: upcomingDuties, isEN: isEN),
-                      const SizedBox(height: 16),
-                      _NotificationsCard(
-                        notifications: notifications,
-                        unread: unreadCount,
-                        isEN: isEN,
-                      ),
-                      const SizedBox(height: 16),
-                      _RecentMeetingsCard(meetings: recentMeetings, isEN: isEN),
-                      const SizedBox(height: 16),
-                      _QuickActionsCard(isEN: isEN, auth: auth),
-                    ],
-                  ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -207,7 +215,7 @@ class _StatsGrid extends StatelessWidget {
         crossAxisCount: cols,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: isDesktop ? 1.8 : 1.5,
+        childAspectRatio: isDesktop ? 1.8 : 0.95,
       ),
       itemCount: stats.length,
       itemBuilder: (_, i) => _StatCard(data: stats[i]),
@@ -242,7 +250,8 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEN = context.watch<AuthProvider>().language == AppLanguage.english;
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
@@ -251,45 +260,39 @@ class _StatCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Flexible(
-                child: Text(
-                  isEN ? data.label : data.labelMm,
-                  style: AppTextStyles.overline.copyWith(
-                    color: AppColors.grey600,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    isEN ? data.label : data.labelMm,
+                    style: AppTextStyles.overline.copyWith(
+                      color: AppColors.grey600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: data.color.withOpacity(0.1),
+                  color: data.color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(data.icon, size: 18, color: data.color),
               ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                data.value,
-                style: AppTextStyles.numeric,
-              ),
-              Text(
-                data.sub,
-                style: AppTextStyles.caption,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+          const SizedBox(height: 8),
+          Text(data.value, style: AppTextStyles.numeric),
+          Text(data.sub, style: AppTextStyles.caption, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -339,6 +342,7 @@ class _DutyTile extends StatelessWidget {
         .firstOrNull;
 
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -518,48 +522,51 @@ class _NotificationTile extends StatelessWidget {
         AppStatusHelper.notificationTypeColor(notif.type);
     return Opacity(
       opacity: notif.isRead ? 0.6 : 1.0,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: notif.isRead ? AppColors.grey300 : color,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notif.title,
-                    style: AppTextStyles.labelMedium.copyWith(
-                      fontWeight: notif.isRead
-                          ? FontWeight.w400
-                          : FontWeight.w700,
+      child: SizedBox(
+        width: double.infinity,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(top: 5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: notif.isRead ? AppColors.grey300 : color,
+                  ),
+                ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notif.title,
+                      style: AppTextStyles.labelMedium.copyWith(
+                        fontWeight: notif.isRead
+                            ? FontWeight.w400
+                            : FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(notif.body,
-                      style: AppTextStyles.caption,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(
-                    AppFormatters.timeAgo(notif.createdAt),
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.grey400),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(notif.body,
+                        style: AppTextStyles.caption,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text(
+                      AppFormatters.timeAgo(notif.createdAt),
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.grey400),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -578,7 +585,7 @@ class _QuickActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      if (auth.canAssignDuties)
+      if (auth.canAssignDuty)
         _QuickAction(
           label: isEN ? 'Assign Duty' : 'တာဝန်ပေးရန်',
           icon: Icons.add_task_rounded,
@@ -594,7 +601,7 @@ class _QuickActionsCard extends StatelessWidget {
         icon: Icons.bloodtype_rounded,
         color: AppColors.error,
       ),
-      if (auth.canAssignDuties)
+      if (auth.canAssignDuty)
         _QuickAction(
           label: isEN ? 'New Meeting' : 'အစည်းအဝေးသစ်',
           icon: Icons.add_comment_rounded,

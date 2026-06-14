@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen>
                               TextFormField(
                                 controller: _memberNoController,
                                 textCapitalization:
-                                    TextCapitalization.characters,
+                                    TextCapitalization.none,
                                 decoration: InputDecoration(
                                   hintText: 'e.g. RC-001',
                                   prefixIcon: const Icon(

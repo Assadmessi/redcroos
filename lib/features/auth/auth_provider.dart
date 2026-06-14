@@ -9,25 +9,18 @@ import '../../core/utils/permission_service.dart';
 // memberNo → password, memberId
 // ─────────────────────────────────────────────
 const _mockCredentials = {
-  // Brigade Office
-  'RC-001': {'password': '1234', 'memberId': 'm1'}, // Brigade Commander
-  'RC-002': {'password': '1234', 'memberId': 'm2'}, // Deputy Brigade Commander
-  'RC-003': {'password': '1234', 'memberId': 'm3'}, // Brigade Office Chief (Company Commander)
-  'RC-006': {'password': '1234', 'memberId': 'm6'}, // Warrant Officer (Brigade Office)
-  'RC-007': {'password': '1234', 'memberId': 'm7'}, // Sergeant Clerk (Brigade Office)
-
-  // Company 1
-  'RC-101': {'password': '1234', 'memberId': 'm101'}, // Company Commander C1
-  'RC-102': {'password': '1234', 'memberId': 'm102'}, // Deputy Company Commander C1
-  'RC-103': {'password': '1234', 'memberId': 'm103'}, // Platoon Leader C1/P1
-  'RC-104': {'password': '1234', 'memberId': 'm104'}, // Section Leader C1/P1/S1
-  'RC-105': {'password': '1234', 'memberId': 'm105'}, // Private C1/P1/S1
+  // Test accounts only — real accounts added via app
+  'RC-001': {'password': '1234', 'memberId': 'm1'},   // Brigade Commander
+  'RC-002': {'password': '1234', 'memberId': 'm2'},   // Deputy Brigade Commander
+  'RC-003': {'password': '1234', 'memberId': 'm3'},   // Brigade Office Chief
+  'RC-101': {'password': '1234', 'memberId': 'm101'}, // Company 1 Commander
+  'RC-105': {'password': '1234', 'memberId': 'm105'}, // Private
 
   // Quick logins for testing
   'admin':   {'password': 'admin123', 'memberId': 'm1'},
   'chief':   {'password': 'chief123', 'memberId': 'm3'},
-  'company': {'password': '1234', 'memberId': 'm101'},
-  'private': {'password': '1234', 'memberId': 'm105'},
+  'company': {'password': '1234',     'memberId': 'm101'},
+  'private': {'password': '1234',     'memberId': 'm105'},
 };
 
 class AuthProvider extends ChangeNotifier {
@@ -44,10 +37,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isEnglish => _language == AppLanguage.english;
 
   // ─── PERMISSION SHORTCUTS ────────────────
-  bool get canAssignDuties => canAssignDuty;
-  bool get canViewInvestigations => isBrigadeWide;
-  bool get canManageFund => canViewFund;
-  
+
   bool get hasMasterAccess =>
       _currentMember != null &&
       PermissionService.hasMasterAccess(_currentMember!);

@@ -76,28 +76,40 @@ class _AppShellState extends State<AppShell> {
   }
 
   // ─── DESKTOP LAYOUT ───────────────────────
-  Widget _buildDesktopLayout() {
+Widget _buildDesktopLayout() {
     return Scaffold(
-      body: Row(
-        children: [
-          _Sidebar(
-            currentPage: _currentPage,
-            collapsed: _sidebarCollapsed,
-            onNavigate: _navigate,
-            onToggleCollapse: () =>
-                setState(() => _sidebarCollapsed = !_sidebarCollapsed),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                _TopBar(currentPage: _currentPage),
-                Expanded(
-                  child: _PageContent(currentPage: _currentPage),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Sidebar(
+                currentPage: _currentPage,
+                collapsed: _sidebarCollapsed,
+                onNavigate: _navigate,
+                onToggleCollapse: () =>
+                    setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+              ),
+              Expanded(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth,
+                    maxHeight: constraints.maxHeight,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _TopBar(currentPage: _currentPage),
+                      Expanded(
+                        child: _PageContent(currentPage: _currentPage),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -230,25 +242,26 @@ class _SidebarHeader extends StatelessWidget {
     required this.onToggle,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 64,
-      padding: EdgeInsets.symmetric(
-        horizontal: collapsed ? 0 : 16,
+@override
+Widget build(BuildContext context) {
+  return Container(
+    height: 64,
+    padding: EdgeInsets.symmetric(
+      horizontal: collapsed ? 0 : 16,
+    ),
+    decoration: const BoxDecoration(
+      border: Border(
+        bottom: BorderSide(color: AppColors.sidebarDivider),
       ),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.sidebarDivider),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: collapsed
-            ? MainAxisAlignment.center
-            : MainAxisAlignment.spaceBetween,
-        children: [
-          if (!collapsed) ...[
-            Row(
+    ),
+    child: Row(
+      mainAxisAlignment: collapsed
+          ? MainAxisAlignment.center
+          : MainAxisAlignment.spaceBetween,
+      children: [
+        if (!collapsed) ...[
+          Expanded(
+            child: Row(
               children: [
                 Container(
                   width: 32,
@@ -278,35 +291,36 @@ class _SidebarHeader extends StatelessWidget {
                 ),
               ],
             ),
-          ] else ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Center(
-                child: Text('✚',
-                    style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900)),
-              ),
+          ),
+        ] else ...[
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-          IconButton(
-            onPressed: onToggle,
-            icon: Icon(
-              collapsed ? Icons.chevron_right : Icons.chevron_left,
-              color: AppColors.sidebarSubtext,
-              size: 20,
+            child: const Center(
+              child: Text('✚',
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900)),
             ),
           ),
         ],
-      ),
-    );
-  }
+        IconButton(
+          onPressed: onToggle,
+          icon: Icon(
+            collapsed ? Icons.chevron_right : Icons.chevron_left,
+            color: AppColors.sidebarSubtext,
+            size: 20,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
 
 class _SidebarItem extends StatelessWidget {
@@ -791,11 +805,13 @@ class _PageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: KeyedSubtree(
-        key: ValueKey(currentPage),
-        child: _buildPage(context),
+    return SizedBox.expand(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: KeyedSubtree(
+          key: ValueKey(currentPage),
+          child: _buildPage(context),
+        ),
       ),
     );
   }
