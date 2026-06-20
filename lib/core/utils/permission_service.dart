@@ -99,6 +99,15 @@ class PermissionService {
         viewer.rank == MemberRank.private) return false;
     if (!RankHelper.isHigherThan(viewer.rank, target.rank) &&
         viewer.id != target.id) return false;
+
+    // Platoon Leader can VIEW full detail across their whole company
+    // (via canViewFullDetail), but may only EDIT members within their
+    // own platoon — not other platoons in the same company.
+    if (viewer.rank == MemberRank.platoonLeader &&
+        target.platoonNo != viewer.platoonNo) {
+      return false;
+    }
+
     return canViewMember(viewer, target);
   }
 
@@ -416,6 +425,88 @@ class PermissionService {
     } else {
       return dutyMember.roleInDuty == DutyRoleInDuty.officer;
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODULE 4 ADDITIONS — List visibility vs Detail visibility
+  //
+  // Two separate questions, deliberately kept apart:
+  //   1. canSeeInMemberList — does this member show up at all when
+  //      `viewer` searches/browses the Members list? (Brigade-wide
+  //      for everyone — see method below.)
+  //   2. canViewFullDetail — once visible, can `viewer` open the
+  //      full Info/Analytics/ID Card tabs, or only contact-info-level
+  //      fields (name, rank, phone, email, unit/company)?
+  //
+  // NOTE: canViewMember (above) is left untouched — it's still used
+  // by duty/report/other modules for their own scope checks. These
+  // new methods are specific to the Members screen.
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `viewer` see `target` show up in the Members list at all?
+  /// Can `viewer` see `target` show up in the Members list at all?
+  /// Brigade-wide for EVERYONE — the list itself shows the entire
+  /// roster to every member, regardless of rank or company. What's
+  /// restricted is the DETAIL shown once you tap in (see
+  /// canViewFullDetail below) — not whether the member appears here.
+  static bool canSeeInMemberList(Member viewer, Member target) {
+    return true;
+  }
+
+  /// Can `viewer` see `target`'s FULL detail — Info tab, Analytics tab,
+  /// AND ID Card tab all derive from this single rule. If false, the
+  /// caller should hide those tabs entirely (not show a locked
+  /// placeholder) and fall back to contact-info-only fields (name,
+  /// rank, phone, email, unit/company) wherever target is shown.
+  ///
+  /// Rules, in order:
+  ///   1. Own profile — always full detail.
+  ///   2. Master Access/Admin viewing a target who is NOT themselves
+  ///      Master Access/Admin — always full detail, regardless of
+  ///      company (Master Access tier sees everyone "below" it fully).
+  ///   3. Master Access/Admin viewing ANOTHER Master Access/Admin
+  ///      target — falls through to rule 4 (rank order still applies
+  ///      between Master Access holders, e.g. Deputy viewing Brigade
+  ///      Commander needs to outrank, which they don't, so no detail).
+  ///   4. Everyone else: same company AND viewer outranks target.
+  ///      Different company, or same company without outranking →
+  ///      contact-info-only.
+  static bool canViewFullDetail(Member viewer, Member target) {
+    if (viewer.id == target.id) return true;
+
+    final viewerIsMaster = hasAdminOrMasterAccess(viewer);
+    final targetIsMaster = hasAdminOrMasterAccess(target);
+
+    // Master Access/Admin viewing a non-Master target — always full
+    // detail, regardless of company.
+    if (viewerIsMaster && !targetIsMaster) return true;
+
+    // Both are Master Access/Admin (e.g. Brigade Commander viewing
+    // Deputy, or Deputy viewing Brigade Commander) — rank order decides
+    // between them directly. This does NOT go through the company-match
+    // check below, since Brigade Office members share no companyNo.
+    if (viewerIsMaster && targetIsMaster) {
+      return RankHelper.isHigherThan(viewer.rank, target.rank);
+    }
+
+    // Viewer is not Master Access. A non-Master viewer can never see a
+    // Master Access target's detail (Brigade Office is always
+    // protected from below).
+    if (targetIsMaster) return false;
+
+    // Standard same-company + outranks rule for everyone else.
+    if (viewer.companyNo != target.companyNo) return false;
+    return RankHelper.isHigherThan(viewer.rank, target.rank);
+  }
+
+  /// Can `viewer` see `target`'s ID card fullscreen landscape view?
+  /// Self or Master Access/Admin only — unrelated to detail visibility.
+  /// Can `viewer` see `target`'s ID card fullscreen landscape view?
+  /// STRICTLY self-only — no exception for any rank, including Master
+  /// Access/Admin. Fullscreen is for showing your OWN card to someone
+  /// in person; it is never used to display someone else's card.
+  static bool canViewIdCardFullscreen(Member viewer, Member target) {
+    return viewer.id == target.id;
   }
 
   // ═══════════════════════════════════════════════════════════

@@ -27,10 +27,87 @@ class _MembersScreenState extends State<MembersScreen> {
   _RankFilter _rankFilter = _RankFilter.all;
   _StatusFilter _statusFilter = _StatusFilter.all;
 
+  // "My Unit" quick filter — narrows the list to the viewer's own
+  // platoon (Platoon Leader) or own section (Section Leader/Deputy),
+  // so they don't have to scroll the whole brigade-wide list to find
+  // their own people. Defaults ON for these ranks since that's almost
+  // always what they want first; easy to switch off via the chip.
+  bool _myUnitOnly = false;
+  bool _myUnitDefaultApplied = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer to after first frame so Provider is guaranteed available
+    // and we don't trigger a setState during initState itself.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyDefaultView());
+  }
+
+  /// Default view on first load, based on the logged-in member:
+  ///   - Company-assigned members (anyone with a companyNo, i.e. not
+  ///     Brigade Office) default the Company filter to their OWN
+  ///     company, so they land on their unit instead of the whole
+  ///     brigade roster.
+  ///   - Platoon Leader / Section Leader additionally default the
+  ///     "My Unit" quick filter on, narrowing further to their exact
+  ///     platoon/section.
+  ///   - Brigade Office members have no single company, so they keep
+  ///     the full "All" view, which is appropriate for their scope.
+  void _applyDefaultView() {
+    if (_myUnitDefaultApplied || !mounted) return;
+    final auth = context.read<AuthProvider>();
+    final me = auth.currentMember;
+    if (me == null) return;
+
+    _myUnitDefaultApplied = true;
+    setState(() {
+      if (me.companyNo != null) {
+        _companyFilter = _companyFilterForNumber(me.companyNo!);
+      }
+      if (_hasMyUnitScope(me)) _myUnitOnly = true;
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Does the viewer have a "my unit" scope worth offering as a quick
+  /// filter? Platoon Leader → own platoon. Section Leader/Deputy
+  /// Section Leader → own section.
+  bool _hasMyUnitScope(Member me) {
+    return me.rank == MemberRank.platoonLeader ||
+        me.rank == MemberRank.sectionLeader ||
+        me.rank == MemberRank.deputySectionLeader;
+  }
+
+  String _myUnitLabel(Member me) {
+    if (me.rank == MemberRank.platoonLeader) {
+      return 'My Platoon';
+    }
+    return 'My Section';
+  }
+
+  bool _isInMyUnit(Member me, Member m) {
+    if (me.rank == MemberRank.platoonLeader) {
+      return m.companyNo == me.companyNo && m.platoonNo == me.platoonNo;
+    }
+    // Section Leader / Deputy Section Leader
+    return m.companyNo == me.companyNo &&
+        m.platoonNo == me.platoonNo &&
+        m.sectionNo == me.sectionNo;
+  }
+
+  _CompanyFilter _companyFilterForNumber(int companyNo) {
+    switch (companyNo) {
+      case 1: return _CompanyFilter.c1;
+      case 2: return _CompanyFilter.c2;
+      case 3: return _CompanyFilter.c3;
+      case 4: return _CompanyFilter.c4;
+      default: return _CompanyFilter.all;
+    }
   }
 
   List<Member> _scopedMembers(AuthProvider auth) {
@@ -38,13 +115,15 @@ class _MembersScreenState extends State<MembersScreen> {
     final me = auth.currentMember;
     if (me == null) return [];
 
-    // Permission scoping — brigade-wide vs company-wide
-    if (auth.isBrigadeWide) return all;
+    // List visibility: brigade-wide for everyone. See
+    // PermissionService.canSeeInMemberList for the full rule set.
+    var result = all.where((m) => auth.canSeeInMemberList(m)).toList();
 
-    return all.where((m) {
-      if (me.unitType == UnitType.brigadeOffice) return true;
-      return m.companyNo == me.companyNo;
-    }).toList();
+    if (_myUnitOnly && _hasMyUnitScope(me)) {
+      result = result.where((m) => _isInMyUnit(me, m)).toList();
+    }
+
+    return result;
   }
 
   List<Member> _applyFilters(List<Member> members) {
@@ -106,8 +185,13 @@ class _MembersScreenState extends State<MembersScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final me = auth.currentMember;
     final scoped = _scopedMembers(auth);
-    final filtered = _applyFilters(scoped);
+    // Own profile gets its own pinned entry above — exclude from the
+    // regular browsable list so it's not shown twice.
+    final filtered = _applyFilters(scoped)
+        .where((m) => me == null || m.id != me.id)
+        .toList();
     final canAddDirectly = auth.canAddMemberDirectly;
     final canPropose = auth.canProposeNewMember;
     final showAddButton = canAddDirectly || canPropose;
@@ -118,6 +202,7 @@ class _MembersScreenState extends State<MembersScreen> {
         children: [
           Column(
             children: [
+              if (me != null) _buildMyProfileCard(context, auth, me),
               _buildSearchBar(auth),
               _buildFilterChips(auth),
               Padding(
@@ -125,10 +210,15 @@ class _MembersScreenState extends State<MembersScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    auth.tr(
-                      '${filtered.length} member${filtered.length == 1 ? '' : 's'} found',
-                      '${filtered.length} ဦး တွေ့ရှိသည်',
-                    ),
+                    _myUnitOnly && me != null && _hasMyUnitScope(me)
+                        ? auth.tr(
+                            '${filtered.length} member${filtered.length == 1 ? '' : 's'} in ${_myUnitLabel(me)}',
+                            '${filtered.length} ဦး — ${_myUnitLabel(me)}',
+                          )
+                        : auth.tr(
+                            '${filtered.length} member${filtered.length == 1 ? '' : 's'} found',
+                            '${filtered.length} ဦး တွေ့ရှိသည်',
+                          ),
                     style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
                   ),
                 ),
@@ -177,6 +267,64 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
+  Widget _buildMyProfileCard(BuildContext context, AuthProvider auth, Member me) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Card(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.25)),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MemberDetailScreen(memberId: me.id),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage:
+                      me.photoUrl != null ? NetworkImage(me.photoUrl!) : null,
+                  child: me.photoUrl == null
+                      ? Text(me.initials,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        auth.tr('My Profile', 'ကိုယ်ပိုင်ကိုယ်ရေးအချက်အလက်'),
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(me.nameEn, style: AppTextStyles.headingMedium),
+                      Text(me.rankNameEn,
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey700)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: AppColors.primary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchBar(AuthProvider auth) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -208,12 +356,35 @@ class _MembersScreenState extends State<MembersScreen> {
   }
 
   Widget _buildFilterChips(AuthProvider auth) {
+    final me = auth.currentMember;
+    final showMyUnitChip = me != null && _hasMyUnitScope(me);
+
     return SizedBox(
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
+          if (showMyUnitChip) ...[
+            FilterChip(
+              label: Text(_myUnitLabel(me!)),
+              selected: _myUnitOnly,
+              onSelected: (val) => setState(() => _myUnitOnly = val),
+              selectedColor: AppColors.primary.withValues(alpha: 0.15),
+              checkmarkColor: AppColors.primary,
+              labelStyle: AppTextStyles.labelSmall.copyWith(
+                color: _myUnitOnly ? AppColors.primary : AppColors.grey700,
+                fontWeight: _myUnitOnly ? FontWeight.bold : FontWeight.normal,
+              ),
+              side: BorderSide(
+                color: _myUnitOnly
+                    ? AppColors.primary
+                    : AppColors.grey50.withValues(alpha: 0.3),
+              ),
+              backgroundColor: Colors.white,
+            ),
+            const SizedBox(width: 8),
+          ],
           _dropdownChip(
             label: _companyLabel(_companyFilter),
             onSelected: (val) => setState(() => _companyFilter = val),

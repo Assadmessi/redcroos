@@ -121,6 +121,21 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canApproveNewMemberProposal(_currentMember!, proposer);
 
+  // ── Module 4 additions: detail/fullscreen restriction ──
+  // canViewFullDetail gates Info tab, Analytics tab, AND ID Card tab
+  // visibility all from one rule — see PermissionService.canViewFullDetail.
+  bool canViewFullDetail(Member target) =>
+      _currentMember != null &&
+      PermissionService.canViewFullDetail(_currentMember!, target);
+
+  bool canViewIdCardFullscreen(Member target) =>
+      _currentMember != null &&
+      PermissionService.canViewIdCardFullscreen(_currentMember!, target);
+
+  bool canSeeInMemberList(Member target) =>
+      _currentMember != null &&
+      PermissionService.canSeeInMemberList(_currentMember!, target);
+
   // Member-specific checks
   bool canViewMember(Member target) =>
       _currentMember != null &&

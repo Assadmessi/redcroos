@@ -9,12 +9,18 @@ class MemberIdCard extends StatefulWidget {
   final Member member;
   final String issuerNameEn;
   final DateTime issuedDate;
+  final DateTime? expiryDateOverride;
+  final bool canFullscreen;
+  final bool canShowDetail;
 
   const MemberIdCard({
     super.key,
     required this.member,
     required this.issuerNameEn,
     required this.issuedDate,
+    this.expiryDateOverride,
+    this.canFullscreen = true,
+    this.canShowDetail = true,
   });
 
   @override
@@ -51,6 +57,7 @@ class _MemberIdCardState extends State<MemberIdCard>
   }
 
   DateTime get _expiryDate =>
+      widget.expiryDateOverride ??
       DateTime(widget.issuedDate.year + 1, widget.issuedDate.month, widget.issuedDate.day);
 
   void _openFullscreen() {
@@ -66,6 +73,7 @@ class _MemberIdCardState extends State<MemberIdCard>
             issuedDate: widget.issuedDate,
             expiryDate: _expiryDate,
             startOnFront: _showingFront,
+            restricted: !widget.canShowDetail,
           ),
         ),
       ),
@@ -78,7 +86,7 @@ class _MemberIdCardState extends State<MemberIdCard>
       children: [
         GestureDetector(
           onTap: _flip,
-          onLongPress: _openFullscreen,
+          onLongPress: widget.canFullscreen ? _openFullscreen : null,
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, child) {
@@ -98,6 +106,7 @@ class _MemberIdCardState extends State<MemberIdCard>
                           issuerNameEn: widget.issuerNameEn,
                           issuedDate: widget.issuedDate,
                           expiryDate: _expiryDate,
+                          restricted: !widget.canShowDetail,
                         ),
                       )
                     : _CardFront(member: widget.member),
@@ -114,12 +123,14 @@ class _MemberIdCardState extends State<MemberIdCard>
               icon: const Icon(Icons.flip, size: 18),
               label: Text(_showingFront ? 'Tap to flip' : 'Tap to flip back'),
             ),
-            const SizedBox(width: 8),
-            TextButton.icon(
-              onPressed: _openFullscreen,
-              icon: const Icon(Icons.fullscreen, size: 18),
-              label: const Text('View fullscreen'),
-            ),
+            if (widget.canFullscreen) ...[
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: _openFullscreen,
+                icon: const Icon(Icons.fullscreen, size: 18),
+                label: const Text('View fullscreen'),
+              ),
+            ],
           ],
         ),
       ],
@@ -304,12 +315,14 @@ class _CardBack extends StatelessWidget {
   final String issuerNameEn;
   final DateTime issuedDate;
   final DateTime expiryDate;
+  final bool restricted;
 
   const _CardBack({
     required this.member,
     required this.issuerNameEn,
     required this.issuedDate,
     required this.expiryDate,
+    this.restricted = false,
   });
 
   String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
@@ -337,32 +350,69 @@ class _CardBack extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
-            if (member.nrc != null)
-              Text(member.nrc!, style: const TextStyle(fontSize: 10)),
-            Text(_fmt(member.dateOfBirth), style: const TextStyle(fontSize: 10)),
-            const SizedBox(height: 3),
-            Text(
-              member.address,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9, color: Colors.black54),
-            ),
-            const Spacer(),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Blood Type  : ${member.bloodTypeDisplay}',
-                      style: const TextStyle(fontSize: 9)),
-                  Text('Issued Date : ${_fmt(issuedDate)}',
-                      style: const TextStyle(fontSize: 9)),
-                  Text('Expiry Date : ${_fmt(expiryDate)}',
-                      style: const TextStyle(fontSize: 9)),
-                ],
+            Text(member.rankNameEn, style: const TextStyle(fontSize: 10)),
+            if (restricted) ...[
+              const SizedBox(height: 3),
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline, size: 11, color: Colors.black45),
+                    const SizedBox(width: 4),
+                    const Text('Contact info only',
+                        style: TextStyle(fontSize: 8, color: Colors.black45)),
+                  ],
+                ),
               ),
-            ),
+              const Spacer(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Phone : ${member.phone.isEmpty ? "—" : member.phone}',
+                        style: const TextStyle(fontSize: 9)),
+                    Text('Email : ${member.email.isEmpty ? "—" : member.email}',
+                        style: const TextStyle(fontSize: 9)),
+                    Text('Unit  : ${member.unitDisplay}',
+                        style: const TextStyle(fontSize: 9)),
+                  ],
+                ),
+              ),
+            ] else ...[
+              if (member.nrc != null)
+                Text(member.nrc!, style: const TextStyle(fontSize: 10)),
+              Text(_fmt(member.dateOfBirth), style: const TextStyle(fontSize: 10)),
+              const SizedBox(height: 3),
+              Text(
+                member.address,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 9, color: Colors.black54),
+              ),
+              const Spacer(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Blood Type  : ${member.bloodTypeDisplay}',
+                        style: const TextStyle(fontSize: 9)),
+                    Text('Issued Date : ${_fmt(issuedDate)}',
+                        style: const TextStyle(fontSize: 9)),
+                    Text('Expiry Date : ${_fmt(expiryDate)}',
+                        style: const TextStyle(fontSize: 9)),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,
@@ -394,6 +444,7 @@ class _FullscreenIdCard extends StatefulWidget {
   final DateTime issuedDate;
   final DateTime expiryDate;
   final bool startOnFront;
+  final bool restricted;
 
   const _FullscreenIdCard({
     required this.member,
@@ -401,6 +452,7 @@ class _FullscreenIdCard extends StatefulWidget {
     required this.issuedDate,
     required this.expiryDate,
     required this.startOnFront,
+    this.restricted = false,
   });
 
   @override
@@ -469,6 +521,7 @@ class _FullscreenIdCardState extends State<_FullscreenIdCard> {
                               issuerNameEn: widget.issuerNameEn,
                               issuedDate: widget.issuedDate,
                               expiryDate: widget.expiryDate,
+                              restricted: widget.restricted,
                             ),
                     );
                   },

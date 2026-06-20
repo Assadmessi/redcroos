@@ -989,13 +989,15 @@ class MockMembers {
     ),
 
     // ─────────────────────────────────────────────────────────
-    // COMPANY 2 — Roles only, no names
+    // COMPANY 2 — Intentionally empty for now.
+    // No mock data entries. Structure, permissions, and rank/unit
+    // logic (UnitType.company/platoon, companyNo: 2, the Company 2
+    // filter option, permission scope rules, etc.) all remain fully
+    // intact elsewhere in the app — only the placeholder data here
+    // was removed. To re-add Company 2 later, copy the Company 1 or
+    // Company 3 block's structure (Commander → Deputy → Sgt Major →
+    // Platoons → Sections → Privates) with companyNo: 2.
     // ─────────────────────────────────────────────────────────
-    Member(id: 'm201', memberNo: 'RC-201', nameEn: '', nameMm: '', rank: MemberRank.companyCommander, unitType: UnitType.company, companyNo: 2, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.seniorOfficer, gender: Gender.male),
-    Member(id: 'm202', memberNo: 'RC-202', nameEn: '', nameMm: '', rank: MemberRank.deputyCompanyCommander, unitType: UnitType.company, companyNo: 2, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.officer, gender: Gender.male),
-    Member(id: 'm203', memberNo: 'RC-203', nameEn: '', nameMm: '', rank: MemberRank.companySergeantMajor, unitType: UnitType.company, companyNo: 2, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.dutyOfficer, gender: Gender.male),
-    Member(id: 'm204', memberNo: 'RC-204', nameEn: '', nameMm: '', rank: MemberRank.platoonLeader, unitType: UnitType.platoon, companyNo: 2, platoonNo: 1, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.officer, gender: Gender.male),
-    Member(id: 'm205', memberNo: 'RC-205', nameEn: '', nameMm: '', rank: MemberRank.platoonLeader, unitType: UnitType.platoon, companyNo: 2, platoonNo: 2, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.officer, gender: Gender.male),
 
     // ─────────────────────────────────────────────────────────
     // COMPANY 3 — Full data from C3_Organization_Chart.xlsx
@@ -1572,13 +1574,15 @@ class MockMembers {
     Member(id: 'm331', memberNo: 'RC-331', nameEn: '', nameMm: '', rank: MemberRank.private, unitType: UnitType.section, companyNo: 3, platoonNo: 2, sectionNo: 2, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1990,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.member, gender: Gender.female),
 
     // ─────────────────────────────────────────────────────────
-    // COMPANY 4 — Roles only, no names
+    // COMPANY 4 — Intentionally empty for now.
+    // No mock data entries. Structure, permissions, and rank/unit
+    // logic (UnitType.company/platoon, companyNo: 4, the Company 4
+    // filter option, permission scope rules, etc.) all remain fully
+    // intact elsewhere in the app — only the placeholder data here
+    // was removed. To re-add Company 4 later, copy the Company 1 or
+    // Company 3 block's structure (Commander → Deputy → Sgt Major →
+    // Platoons → Sections → Privates) with companyNo: 4.
     // ─────────────────────────────────────────────────────────
-    Member(id: 'm401', memberNo: 'RC-401', nameEn: '', nameMm: '', rank: MemberRank.companyCommander, unitType: UnitType.company, companyNo: 4, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.seniorOfficer, gender: Gender.male),
-    Member(id: 'm402', memberNo: 'RC-402', nameEn: '', nameMm: '', rank: MemberRank.deputyCompanyCommander, unitType: UnitType.company, companyNo: 4, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.officer, gender: Gender.male),
-    Member(id: 'm403', memberNo: 'RC-403', nameEn: '', nameMm: '', rank: MemberRank.companySergeantMajor, unitType: UnitType.company, companyNo: 4, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.dutyOfficer, gender: Gender.male),
-    Member(id: 'm404', memberNo: 'RC-404', nameEn: '', nameMm: '', rank: MemberRank.platoonLeader, unitType: UnitType.platoon, companyNo: 4, platoonNo: 1, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.officer, gender: Gender.male),
-    Member(id: 'm405', memberNo: 'RC-405', nameEn: '', nameMm: '', rank: MemberRank.platoonLeader, unitType: UnitType.platoon, companyNo: 4, platoonNo: 2, status: MemberStatus.active, bloodType: BloodType.OP, joinDate: DateTime(2020,1,1), dateOfBirth: DateTime(1980,1,1), phone: '', email: '', address: '', emergencyContact: '', emergencyPhone: '', skillIds: const [], role: UserRole.officer, gender: Gender.male),
   ];
 }
 

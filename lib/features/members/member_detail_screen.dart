@@ -67,9 +67,17 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
     final auth = context.watch<AuthProvider>();
     final canEdit = auth.canManageMember(_member);
     final isVacant = _member.nameEn.isEmpty;
+    final canViewDetail = auth.canViewFullDetail(_member);
+    final canFullscreenCard = auth.canViewIdCardFullscreen(_member);
+
+    // Info tab always exists (full detail or contact-info-only fallback).
+    // ID Card and Analytics tabs only exist at all when canViewDetail is
+    // true — per the rule that a higher rank's card/analytics should be
+    // hidden entirely, not shown as a locked placeholder.
+    final tabCount = canViewDetail ? 3 : 1;
 
     return DefaultTabController(
-      length: 3,
+      length: tabCount,
       child: Scaffold(
         appBar: AppBar(
           title: Text(isVacant ? '(Vacant Position)' : _member.nameEn),
@@ -83,23 +91,94 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                 ),
               ),
           ],
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Info'),
-              Tab(text: 'ID Card'),
-              Tab(text: 'Analytics'),
-            ],
-          ),
+          bottom: canViewDetail
+              ? const TabBar(
+                  tabs: [
+                    Tab(text: 'Info'),
+                    Tab(text: 'ID Card'),
+                    Tab(text: 'Analytics'),
+                  ],
+                )
+              : null,
         ),
         body: isVacant
             ? const Center(child: Text('This position is currently vacant.'))
-            : TabBarView(
-                children: [
-                  _InfoTab(member: _member, onToggleAvailability: () => _toggleAvailability(auth)),
-                  _IdCardTab(member: _member),
-                  _AnalyticsTab(member: _member),
-                ],
-              ),
+            : (canViewDetail
+                ? TabBarView(
+                    children: [
+                      _InfoTab(member: _member, onToggleAvailability: () => _toggleAvailability(auth)),
+                      _IdCardTab(
+                        member: _member,
+                        canFullscreen: canFullscreenCard,
+                        canShowDetail: true,
+                        canEditCard: canEdit,
+                      ),
+                      _AnalyticsTab(member: _member),
+                    ],
+                  )
+                : _RestrictedTab(member: _member)),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RESTRICTED PLACEHOLDER — shown instead of Info/Analytics when
+// viewing a higher-ranking member without Master Access/Admin
+// ─────────────────────────────────────────────────────────────────
+class _RestrictedTab extends StatelessWidget {
+  final Member member;
+  const _RestrictedTab({required this.member});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.lock_outline, size: 18, color: AppColors.grey500),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Full profile is restricted — contact info only',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                _row('Name', member.nameEn),
+                _row('Rank', member.rankNameEn),
+                _row('Phone', member.phone.isEmpty ? '—' : member.phone),
+                _row('Email', member.email.isEmpty ? '—' : member.email),
+                _row('Unit / Company', member.unitDisplay),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey500)),
+          ),
+          Expanded(child: Text(value, style: AppTextStyles.bodyMedium)),
+        ],
       ),
     );
   }
@@ -279,36 +358,207 @@ class _InfoTab extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────
 // TAB 2 — ID CARD
 // ─────────────────────────────────────────────────────────────────
-class _IdCardTab extends StatelessWidget {
+class _IdCardTab extends StatefulWidget {
   final Member member;
-  const _IdCardTab({required this.member});
+  final bool canFullscreen;
+  final bool canShowDetail;
+  final bool canEditCard;
+  const _IdCardTab({
+    required this.member,
+    required this.canFullscreen,
+    required this.canShowDetail,
+    required this.canEditCard,
+  });
+
+  @override
+  State<_IdCardTab> createState() => _IdCardTabState();
+}
+
+class _IdCardTabState extends State<_IdCardTab> {
+  // ── Card-only fields ──
+  // These are NOT part of the CV/Info profile and can't be reliably
+  // auto-filled, so they're editable here on the ID Card tab directly:
+  //   - issuerNameEn: who signs as issuing officer (defaults to current
+  //     Brigade Commander, but may need overriding e.g. during a vacancy
+  //     or if Deputy signs instead)
+  //   - issuedDate: when this specific card was printed/issued
+  //   - expiryOverride: normally issuedDate + 1 year, but can be manually
+  //     extended/shortened (e.g. re-issued card, lost card replacement)
+  late String _issuerNameEn;
+  late DateTime _issuedDate;
+  DateTime? _expiryOverride;
+
+  @override
+  void initState() {
+    super.initState();
+    final commander = MockMembers.all.firstWhere(
+      (m) => m.rank.name == 'brigadeCommander',
+      orElse: () => widget.member,
+    );
+    _issuerNameEn = commander.nameEn;
+    _issuedDate = DateTime.now();
+  }
+
+  DateTime get _effectiveExpiry =>
+      _expiryOverride ?? DateTime(_issuedDate.year + 1, _issuedDate.month, _issuedDate.day);
+
+  Future<void> _openEditSheet() async {
+    final issuerCtrl = TextEditingController(text: _issuerNameEn);
+    DateTime issuedDate = _issuedDate;
+    DateTime? expiryOverride = _expiryOverride;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: 16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Edit Card Details', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 4),
+                  Text(
+                    'These fields are specific to this physical card and are not part of the member profile.',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: issuerCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Issuing Officer Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: issuedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 1)),
+                      );
+                      if (picked != null) setSheetState(() => issuedDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Issued Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Text(AppFormatters.date(issuedDate)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: expiryOverride ??
+                            DateTime(issuedDate.year + 1, issuedDate.month, issuedDate.day),
+                        firstDate: issuedDate,
+                        lastDate: DateTime(issuedDate.year + 5),
+                      );
+                      if (picked != null) setSheetState(() => expiryOverride = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Expiry Date (override)',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: expiryOverride != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () => setSheetState(() => expiryOverride = null),
+                              )
+                            : null,
+                      ),
+                      child: Text(
+                        expiryOverride != null
+                            ? AppFormatters.date(expiryOverride!)
+                            : 'Default: ${AppFormatters.date(DateTime(issuedDate.year + 1, issuedDate.month, issuedDate.day))}',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _issuerNameEn = issuerCtrl.text.trim().isEmpty
+                                  ? _issuerNameEn
+                                  : issuerCtrl.text.trim();
+                              _issuedDate = issuedDate;
+                              _expiryOverride = expiryOverride;
+                            });
+                            Navigator.pop(sheetContext);
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final commander = MockMembers.all.firstWhere(
-      (m) => m.rank.name == 'brigadeCommander',
-      orElse: () => member,
-    );
-
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            MemberIdCard(
-              member: member,
-              issuerNameEn: commander.nameEn,
-              issuedDate: DateTime.now(),
+    return Stack(
+      children: [
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                MemberIdCard(
+                  member: widget.member,
+                  issuerNameEn: _issuerNameEn,
+                  issuedDate: _issuedDate,
+                  expiryDateOverride: _expiryOverride,
+                  canFullscreen: widget.canFullscreen,
+                  canShowDetail: widget.canShowDetail,
+                ),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('Download PDF'),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.picture_as_pdf),
-              label: const Text('Download PDF'),
-            ),
-          ],
+          ),
         ),
-      ),
+        if (widget.canEditCard)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: IconButton(
+              onPressed: _openEditSheet,
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit card details',
+            ),
+          ),
+      ],
     );
   }
 }
