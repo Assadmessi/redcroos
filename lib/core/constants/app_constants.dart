@@ -1,6 +1,6 @@
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // ROUTE CONSTANTS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 class AppRoutes {
   AppRoutes._();
 
@@ -47,16 +47,16 @@ class AppRoutes {
   static const String settings         = '/settings';
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // APP STRINGS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 class AppStrings {
   AppStrings._();
 
   static const String appName        = 'Botahtaung Red Cross Brigade';
-  static const String appNameMM      = 'ဗိုလ်တထောင် ကြက်ခြေနီ တပ်ခွဲ';
+  static const String appNameMM      = 'ဗိုလ်တထောင် ကြက်ခြေနီ တပ်ဖွဲ့';
   static const String appTagline     = 'Brigade Management System';
-  static const String appTaglineMM   = 'တပ်ခွဲ စီမံခန့်ခွဲမှု စနစ်';
+  static const String appTaglineMM   = 'တပ်ဖွဲ့ စီမံခန့်ခွဲမှု စနစ်';
   static const String organization   = 'Myanmar Red Cross Society';
   static const String organizationMM = 'မြန်မာနိုင်ငံကြက်ခြေနီအသင်း';
 
@@ -78,7 +78,7 @@ class AppStrings {
   static const String classes        = 'Classes';
   static const String classesMM      = 'သင်တန်းများ';
   static const String blood          = 'Blood Donations';
-  static const String bloodMM        = 'သွေးလှူဒါန်း';
+  static const String bloodMM        = 'သွေးလှူဒါန်းမှု';
   static const String reports        = 'Reports';
   static const String reportsMM      = 'အစီရင်ခံစာများ';
   static const String investigations = 'Investigations';
@@ -121,94 +121,123 @@ class AppStrings {
   static const String errorRequired     = 'This field is required.';
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // LANGUAGE
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum AppLanguage { english, burmese }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // RANKS
 // Full rank system for Botahtaung Red Cross Brigade
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum MemberRank {
-  // ─── Officer Ranks (အရာရှိများ) ───────────
-  brigadeCommander,        // မြို့နယ်တပ်ဖွဲ့မှူး
-  deputyBrigadeCommander,  // ဒုတိယမြို့နယ်တပ်ဖွဲ့မှူး
-  companyCommander,        // တပ်ဖွဲ့ခွဲမှူး
-  deputyCompanyCommander,  // ဒုတိယတပ်ဖွဲ့ခွဲမှူး
-  platoonLeader,           // တပ်စုမှူး
+  // ── Officer Ranks (အရာရှိများ) ──
+  brigadeCommander,
+  deputyBrigadeCommander,
+  companyCommander,
+  deputyCompanyCommander,
+  platoonLeader,
 
-  // ─── Other Ranks (အခြားအဆင့်များ) ────────
-  warrantOfficer,          // အရာခံဗိုလ်
-  sergeantClerk,           // တပ်ကြပ်ကြီးစာရေး
-  companySergeantMajor,    // တပ်ခွဲတပ်ကြပ်ကြီး
-  platoonSergeant,         // တပ်စုတပ်ကြပ်ကြီး
-  sectionLeader,           // တပ်စိတ်မှူး
-  deputySectionLeader,     // ဒုတပ်စိတ်မှူး
-  private,                 // ကြက်ခြေနီတပ်သား
+  // ── Other Ranks (အခြားအဆင့်များ) ──
+  warrantOfficer,
+  sergeantClerk,
+  companySergeantMajor,
+  platoonSergeant,
+  sectionLeader,
+  deputySectionLeader,
+  private,
 }
 
 // Chairperson is a special external role
-// tracked separately (not a rank in the brigade)
 enum ChairpersonRole { chairperson }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // UNIT TYPES
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum UnitType {
-  brigadeOffice,   // မြို့နယ်ကြက်ခြေနီသူနာပြုတပ်ဖွဲ့ရုံး
-  companyOffice,   // တပ်ဖွဲ့ခွဲရုံး
-  platoonOffice,   // တပ်စုရုံး
-  company,         // တပ်ဖွဲ့ခွဲ (field)
-  platoon,         // တပ်စု (field)
-  section,         // တပ်စိတ် (field)
+  brigadeOffice,
+  companyOffice,
+  platoonOffice,
+  company,
+  platoon,
+  section,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // APP ROLE (simplified for permission checks)
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum AppRole {
-  chairperson,         // ဥက္ကဌ — full access
-  masterAccess,        // Brigade Commander, Deputy, Brigade Office Chief — full access
-  brigadeOffice,       // Any rank in Brigade Office — brigade-wide view
-  officerField,        // Officer ranks in field — unit-based access
-  otherRankField,      // Other ranks in field — unit-based restricted access
-  private,             // Private — own profile only
+  chairperson,
+  masterAccess,
+  brigadeOffice,
+  officerField,
+  otherRankField,
+  private,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // UNIT SCOPE (for permission checks)
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum UnitScope {
-  brigadWide,     // Can see/manage entire brigade
-  companyWide,    // Can see/manage own company
-  platoonWide,    // Can see/manage own platoon
-  sectionWide,    // Can see/manage own section
-  ownOnly,        // Own profile/records only
+  brigadWide,
+  companyWide,
+  platoonWide,
+  sectionWide,
+  ownOnly,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // MEMBER STATUS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum MemberStatus { active, inactive, suspended, dismissed }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// MODULE 4 ADDITIONS — Gender + Membership Type
+// ─────────────────────────────────────────────────────────────
+enum Gender { male, female }
+
+/// Probation flow: သာမန်အသင်းဝင် (RCOM) → တပ်ဖွဲ့ဝင်အသင်းဝင် (RCBM)
+enum MembershipType {
+  pendingApplication, // form submitted, not yet approved
+  probationer,        // သာမန်အသင်းဝင် — RCOM approved, သမ number assigned
+  official,           // တပ်ဖွဲ့ဝင် — RCBM approved, တဖ number assigned
+}
+
+extension MembershipTypeDisplay on MembershipType {
+  String get nameEn {
+    switch (this) {
+      case MembershipType.pendingApplication: return 'Pending Application';
+      case MembershipType.probationer: return 'Probationer';
+      case MembershipType.official: return 'Official Member';
+    }
+  }
+
+  String get nameMm {
+    switch (this) {
+      case MembershipType.pendingApplication: return 'လျှောက်ထားဆဲ';
+      case MembershipType.probationer: return 'သာမန်အသင်းဝင်';
+      case MembershipType.official: return 'တပ်ဖွဲ့ဝင်';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // DUTY ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum DutyType {
   firstAid,
   bloodDonation,
   training,
   patrol,
-  eventMedical,   // Large scale — has Commander
+  eventMedical,
   disaster,
   administrative,
   other,
 }
 
 enum DutyScale {
-  regular,    // Has Duty Officer(s) only
-  largeScale, // Has Duty Commander + Officers (marathon, festival etc.)
+  regular,
+  largeScale,
 }
 
 enum DutyStatus { upcoming, ongoing, completed, cancelled }
@@ -216,21 +245,21 @@ enum DutyStatus { upcoming, ongoing, completed, cancelled }
 enum DutyAssignmentStatus { pending, accepted, rejected, completed }
 
 enum DutyRoleInDuty {
-  commander,  // Large scale only
-  officer,    // All duties
-  member,     // All duties
+  commander,
+  officer,
+  member,
 }
 
 enum AvailabilityStatus { free, busy, maybe, notSet }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // EVENT POSITION TYPES
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum EventPositionType { base, point, patrol, standby, command, liaison }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // MEETING ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum MeetingType {
   general,
   officer,
@@ -249,16 +278,16 @@ enum MeetingStatus {
   published,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // CLASS ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum ClassType { classRoom, workshop, seminar, drill, other }
 
 enum ClassStatus { draft, open, full, ongoing, completed, archived }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // INVESTIGATION ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum InvestigationStatus {
   opened,
   underInvestigation,
@@ -273,15 +302,15 @@ enum InvestigationStatus {
 }
 
 enum InvestigationMemberRole {
-  committee,  // Can manage if not related
-  accused,    // Completely locked out
-  witness,    // Completely locked out
-  appealCommittee, // Can view + add appeal content only
+  committee,
+  accused,
+  witness,
+  appealCommittee,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // PUNISHMENT ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum PunishmentType {
   verbalWarning,
   writtenWarning,
@@ -294,23 +323,23 @@ enum PunishmentType {
 
 enum PunishmentStatus { active, completed, lifted, underAppeal, overturned }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // BLOOD DONATION ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum BloodType { OP, OM, AP, AM, BP, BM, ABP, ABM }
 
 enum DonorType { internal, external }
 
 enum DonationSource { organization, selfReported, priorManual }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // TRANSFER ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum TransferType { promotion, demotion, transfer, reinstatement }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // FINANCIAL ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum FundingSource { organizationFund, externalGrant, jointFunding, custom }
 
 enum ExpenseStatus { pending, approved, rejected }
@@ -319,9 +348,9 @@ enum PaymentStatus { unpaid, initiated, paid, verified }
 
 enum ReimbursementStatus { claimed, underReview, approved, reimbursed, rejected }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // NOTIFICATION ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum NotificationType {
   duty,
   meeting,
@@ -338,9 +367,9 @@ enum NotificationType {
 
 enum NotificationPriority { normal, high, emergency }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // YOUTH WING ENUMS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum YouthGroup {
   firstAid,
   disasterManagement,
@@ -351,29 +380,29 @@ enum YouthGroup {
 
 enum YouthGroupRole { leader, member }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // ARCHIVE VISIBILITY
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum ArchiveVisibility {
-  defaultAccess,    // Up to Company Commander
+  defaultAccess,
   brigadeOfficeOnly,
   specificRanks,
   custom,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // SIGNATURE STATUS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum SignatureStatus { pending, signed }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // REPORT STATUS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum ReportStatus { draft, underReview, finalized, published }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // DISPATCH STATUS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 enum DispatchStatus {
   created,
   membersSelected,
@@ -382,9 +411,9 @@ enum DispatchStatus {
   returned,
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 // RANK DISPLAY HELPERS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 class RankHelper {
   RankHelper._();
 
@@ -409,8 +438,8 @@ class RankHelper {
     switch (rank) {
       case MemberRank.brigadeCommander:       return 'မြို့နယ်တပ်ဖွဲ့မှူး';
       case MemberRank.deputyBrigadeCommander: return 'ဒုတိယမြို့နယ်တပ်ဖွဲ့မှူး';
-      case MemberRank.companyCommander:       return 'တပ်ဖွဲ့ခွဲမှူး';
-      case MemberRank.deputyCompanyCommander: return 'ဒုတိယတပ်ဖွဲ့ခွဲမှူး';
+      case MemberRank.companyCommander:       return 'တပ်ခွဲမှူး';
+      case MemberRank.deputyCompanyCommander: return 'ဒုတိယတပ်ခွဲမှူး';
       case MemberRank.platoonLeader:          return 'တပ်စုမှူး';
       case MemberRank.warrantOfficer:         return 'အရာခံဗိုလ်';
       case MemberRank.sergeantClerk:          return 'တပ်ကြပ်ကြီးစာရေး';
@@ -456,7 +485,6 @@ class RankHelper {
 }
 
 // Legacy UserRole kept for backward compatibility
-// Will be replaced by MemberRank + UnitType system
 enum UserRole {
   admin,
   topBrass,

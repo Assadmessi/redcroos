@@ -1,9 +1,17 @@
 import '../../core/constants/app_constants.dart';
 
-// ─────────────────────────────────────────────
-// MEMBER MODEL — Updated with full rank system
-// ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// MEMBER MODEL — Module 4 Extension
+//
+// Extends the Module 3 Member model with the official CV-format
+// fields (28-field profile), probation/membership flow, availability
+// (separate from active/inactive status), and admin role flag.
+//
+// All Module 3 fields are preserved exactly. Only new fields added,
+// all nullable or defaulted so existing code keeps compiling.
+// ═══════════════════════════════════════════════════════════════
 class Member {
+  // ── Module 3 fields (unchanged) ──
   final String id;
   final String memberNo;
   final String nameEn;
@@ -26,12 +34,12 @@ class Member {
   final List<String> skillIds;
 
   // Special flags
-  final bool isChairperson;           // ဥက္ကဌ
-  final bool isBrigadeOfficeChief;    // Chief of Brigade Office
-  final bool hasBrigadeOfficeAuthority; // Special authority granted by Brigade Commander
+  final bool isChairperson;
+  final bool isBrigadeOfficeChief;
+  final bool hasBrigadeOfficeAuthority;
 
   // Duty assignment (can manage two platoons)
-  final List<int>? assignedPlatoons;  // For officers managing multiple platoons
+  final List<int>? assignedPlatoons;
 
   // Youth Wing
   final YouthGroup? youthGroup;
@@ -39,6 +47,46 @@ class Member {
 
   // Legacy role (kept for backward compat)
   final UserRole role;
+
+  // ── Module 4 additions: CV-format fields (28-field profile) ──
+  final Gender gender;
+  final String? fatherName;
+  final String? fatherOccupation;
+  final String? motherName;
+  final String? motherOccupation;
+  final String? nrc;                  // နိုင်ငံသားစိစစ်ရေးအမှတ် (or "လျှောက်ထားဆဲ")
+  final String? ygnId;                // YGN ID No. e.g. 13017/00024
+  final DateTime? currentRankDate;    // လက်ရှိရာထူးရရက်စွဲ
+  final String? height;               // အရပ် e.g. "၅ ပေ ၅ လက်မ"
+  final String? eyeColor;
+  final String? hairColor;
+  final String? distinguishingMarks;
+  final String? ethnicity;
+  final String? religion;
+  final String? education;
+  final String? occupation;
+  final String? occupationDepartment;
+  final List<String> completedTrainings;
+  final String? honorsAwards;
+
+  // ── Module 4 additions: Membership numbers ──
+  final String? membershipNo;         // တဖ-ရက/ဗတထ/[No] or သမ-[No]/ဗတထ/ရက
+  final String? lifetimeMemberNo;     // ရာသက်ပန်-XXXX
+  final DateTime? lifetimeMemberDate;
+  final String? serviceBookNo;        // သမ-XX/ဗတထ/ရက
+
+  // ── Module 4 additions: Probation flow ──
+  final MembershipType membershipType;
+  final DateTime? probationStartDate;
+  final List<int> annualFeesPaidYears; // years annual fee was paid (RCOM only)
+
+  // ── Module 4 additions: Availability (separate from status) ──
+  final bool isAvailable;             // scheduling flag, not membership status
+
+  // ── Module 4 additions: Admin role ──
+  final bool isAdminRole;             // same power as Master Access for
+                                       // availability/active-inactive/rank,
+                                       // but needs approval to act on Deputy+ rank
 
   const Member({
     required this.id,
@@ -68,8 +116,38 @@ class Member {
     this.youthGroup,
     this.youthGroupRole,
     required this.role,
+    // Module 4 additions — all default safely
+    this.gender = Gender.male,
+    this.fatherName,
+    this.fatherOccupation,
+    this.motherName,
+    this.motherOccupation,
+    this.nrc,
+    this.ygnId,
+    this.currentRankDate,
+    this.height,
+    this.eyeColor,
+    this.hairColor,
+    this.distinguishingMarks,
+    this.ethnicity,
+    this.religion,
+    this.education,
+    this.occupation,
+    this.occupationDepartment,
+    this.completedTrainings = const [],
+    this.honorsAwards,
+    this.membershipNo,
+    this.lifetimeMemberNo,
+    this.lifetimeMemberDate,
+    this.serviceBookNo,
+    this.membershipType = MembershipType.official,
+    this.probationStartDate,
+    this.annualFeesPaidYears = const [],
+    this.isAvailable = true,
+    this.isAdminRole = false,
   });
 
+  // ── Existing getters (unchanged) ──
   String get initials {
     final parts = nameEn.split(' ');
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}';
@@ -110,6 +188,63 @@ class Member {
     return 'Unassigned';
   }
 
+  // ── Module 4 new getters ──
+
+  /// Years of service: today - joinDate
+  int get yearsOfService {
+    final now = DateTime.now();
+    int years = now.year - joinDate.year;
+    if (now.month < joinDate.month ||
+        (now.month == joinDate.month && now.day < joinDate.day)) {
+      years--;
+    }
+    return years < 0 ? 0 : years;
+  }
+
+  /// Years in current rank: today - currentRankDate
+  int? get yearsInCurrentRank {
+    if (currentRankDate == null) return null;
+    final now = DateTime.now();
+    int years = now.year - currentRankDate!.year;
+    if (now.month < currentRankDate!.month ||
+        (now.month == currentRankDate!.month && now.day < currentRankDate!.day)) {
+      years--;
+    }
+    return years < 0 ? 0 : years;
+  }
+
+  /// Current age: today - dateOfBirth
+  int get age {
+    final now = DateTime.now();
+    int years = now.year - dateOfBirth.year;
+    if (now.month < dateOfBirth.month ||
+        (now.month == dateOfBirth.month && now.day < dateOfBirth.day)) {
+      years--;
+    }
+    return years < 0 ? 0 : years;
+  }
+
+  String get genderDisplayMm => gender == Gender.male ? 'ကျား' : 'မ';
+
+  /// Honorific prefix based on gender, used in document generation
+  String get honorificPrefixMm => gender == Gender.male ? 'ဦး' : 'ဒေါ်';
+
+  bool get isProbationer => membershipType == MembershipType.probationer;
+  bool get isOfficialMember => membershipType == MembershipType.official;
+  bool get isPendingApplication => membershipType == MembershipType.pendingApplication;
+
+  /// Annual fee expiry check (RCOM probationers only):
+  /// 3 consecutive years missed → membership auto-expires
+  bool get hasAnnualFeeExpiryRisk {
+    if (!isProbationer) return false;
+    final currentYear = DateTime.now().year;
+    final last3Years = [currentYear, currentYear - 1, currentYear - 2];
+    final missedCount = last3Years
+        .where((y) => !annualFeesPaidYears.contains(y))
+        .length;
+    return missedCount >= 3;
+  }
+
   Member copyWith({
     bool? isBrigadeOfficeChief,
     bool? hasBrigadeOfficeAuthority,
@@ -121,13 +256,20 @@ class Member {
     YouthGroup? youthGroup,
     YouthGroupRole? youthGroupRole,
     MemberStatus? status,
+    // Module 4 additions
+    bool? isAvailable,
+    bool? isAdminRole,
+    MembershipType? membershipType,
+    String? membershipNo,
+    MemberRank? rank,
+    String? photoUrl,
   }) {
     return Member(
       id: id,
       memberNo: memberNo,
       nameEn: nameEn,
       nameMm: nameMm,
-      rank: rank,
+      rank: rank ?? this.rank,
       unitType: unitType ?? this.unitType,
       companyNo: companyNo ?? this.companyNo,
       platoonNo: platoonNo ?? this.platoonNo,
@@ -135,7 +277,7 @@ class Member {
       status: status ?? this.status,
       bloodType: bloodType,
       joinDate: joinDate,
-      photoUrl: photoUrl,
+      photoUrl: photoUrl ?? this.photoUrl,
       phone: phone,
       email: email,
       address: address,
@@ -145,11 +287,40 @@ class Member {
       skillIds: skillIds,
       isChairperson: isChairperson,
       isBrigadeOfficeChief: isBrigadeOfficeChief ?? this.isBrigadeOfficeChief,
-      hasBrigadeOfficeAuthority: hasBrigadeOfficeAuthority ?? this.hasBrigadeOfficeAuthority,
+      hasBrigadeOfficeAuthority:
+          hasBrigadeOfficeAuthority ?? this.hasBrigadeOfficeAuthority,
       assignedPlatoons: assignedPlatoons ?? this.assignedPlatoons,
       youthGroup: youthGroup ?? this.youthGroup,
       youthGroupRole: youthGroupRole ?? this.youthGroupRole,
       role: role,
+      gender: gender,
+      fatherName: fatherName,
+      fatherOccupation: fatherOccupation,
+      motherName: motherName,
+      motherOccupation: motherOccupation,
+      nrc: nrc,
+      ygnId: ygnId,
+      currentRankDate: currentRankDate,
+      height: height,
+      eyeColor: eyeColor,
+      hairColor: hairColor,
+      distinguishingMarks: distinguishingMarks,
+      ethnicity: ethnicity,
+      religion: religion,
+      education: education,
+      occupation: occupation,
+      occupationDepartment: occupationDepartment,
+      completedTrainings: completedTrainings,
+      honorsAwards: honorsAwards,
+      membershipNo: membershipNo ?? this.membershipNo,
+      lifetimeMemberNo: lifetimeMemberNo,
+      lifetimeMemberDate: lifetimeMemberDate,
+      serviceBookNo: serviceBookNo,
+      membershipType: membershipType ?? this.membershipType,
+      probationStartDate: probationStartDate,
+      annualFeesPaidYears: annualFeesPaidYears,
+      isAvailable: isAvailable ?? this.isAvailable,
+      isAdminRole: isAdminRole ?? this.isAdminRole,
     );
   }
 }

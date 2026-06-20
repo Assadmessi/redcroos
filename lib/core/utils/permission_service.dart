@@ -38,22 +38,33 @@ class PermissionService {
     if (member.unitType == UnitType.platoonOffice) return UnitScope.platoonWide;
 
     // Field assignments by rank
+    // (brigadeCommander/deputyBrigadeCommander/brigadeOffice cases are
+    // already handled above via hasMasterAccess() and unitType checks —
+    // if we reach here for those ranks, treat as field fallback below)
     switch (member.rank) {
       case MemberRank.brigadeCommander:
       case MemberRank.deputyBrigadeCommander:
         return UnitScope.brigadWide;
+
       case MemberRank.companyCommander:
       case MemberRank.deputyCompanyCommander:
         return UnitScope.companyWide;
+
       case MemberRank.platoonLeader:
       case MemberRank.companySergeantMajor:
       case MemberRank.platoonSergeant:
+        return UnitScope.platoonWide;
+
       case MemberRank.warrantOfficer:
       case MemberRank.sergeantClerk:
+        // These are only brigade-wide if in Brigade Office
+        // (already handled above) — if we reach here they are field
         return UnitScope.platoonWide;
+
       case MemberRank.sectionLeader:
       case MemberRank.deputySectionLeader:
         return UnitScope.sectionWide;
+
       case MemberRank.private:
         return UnitScope.ownOnly;
     }
@@ -405,5 +416,101 @@ class PermissionService {
     } else {
       return dutyMember.roleInDuty == DutyRoleInDuty.officer;
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODULE 4 ADDITIONS — Add Member permissions
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` add a new member directly (no approval needed)?
+  /// Master Access, Admin, Company Commander, Deputy Company Commander.
+  static bool canAddMemberDirectly(Member member) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    if (member.rank == MemberRank.companyCommander) return true;
+    if (member.rank == MemberRank.deputyCompanyCommander) return true;
+    return false;
+  }
+
+  /// Can `member` propose a new member (needs Company Commander approval)?
+  /// Platoon Leader and Section Leader only.
+  static bool canProposeNewMember(Member member) {
+    if (member.rank == MemberRank.platoonLeader) return true;
+    if (member.rank == MemberRank.sectionLeader) return true;
+    return false;
+  }
+
+  /// Can `member` add OR propose a new member at all (used to show the
+  /// Add Member button — actual flow differs based on which is true).
+  static bool canAddOrProposeMember(Member member) {
+    return canAddMemberDirectly(member) || canProposeNewMember(member);
+  }
+
+  /// Can `approver` approve a pending member proposal submitted within
+  /// their company? Only Company Commander / Deputy Company Commander
+  /// of the SAME company as the proposer, or Master Access/Admin.
+  static bool canApproveNewMemberProposal(Member approver, Member proposer) {
+    if (hasAdminOrMasterAccess(approver)) return true;
+    final isCompanyLead = approver.rank == MemberRank.companyCommander ||
+        approver.rank == MemberRank.deputyCompanyCommander;
+    if (!isCompanyLead) return false;
+    return approver.companyNo == proposer.companyNo;
+  }
+
+
+  /// Admin role has same power as Master Access for most things,
+  /// EXCEPT acting on Deputy Brigade Commander+ requires approval
+  /// (handled via adminApprovalTierFor at the workflow layer).
+  static bool hasAdminOrMasterAccess(Member member) {
+    return member.isAdminRole || hasMasterAccess(member);
+  }
+
+  /// Can `actor` toggle `target`'s availability directly (no approval)?
+  static bool canToggleAvailabilityDirectly(Member actor, Member target) {
+    return hasAdminOrMasterAccess(actor);
+  }
+
+  /// Can `actor` request to toggle `target`'s availability
+  /// (requires approval from actor's own higher rank)?
+  static bool canRequestAvailabilityToggle(Member actor, Member target) {
+    if (hasAdminOrMasterAccess(actor)) return true; // direct, not request
+
+    // Self-request: any member can request their own availability change
+    if (actor.id == target.id) return true;
+
+    // Higher rank requesting for someone below them, same unit scope
+    final actorIsHigher = RankHelper.isHigherThan(actor.rank, target.rank);
+    if (!actorIsHigher) return false;
+
+    if (actor.unitType == UnitType.brigadeOffice) return true;
+    return actor.companyNo == target.companyNo;
+  }
+
+  /// Active/Inactive status — ONLY Master Access or Admin role.
+  /// Nobody (including self) can change their own active/inactive.
+  static bool canChangeActiveStatus(Member actor, Member target) {
+    return hasAdminOrMasterAccess(actor);
+  }
+
+  /// Rank/role changes — ONLY Master Access or Admin role.
+  /// Self cannot change own rank/role even if Master Access
+  /// (must go through formal order process — UI enforces this).
+  static bool canChangeRankOrRole(Member actor, Member target) {
+    if (actor.id == target.id) return false; // never self
+    return hasAdminOrMasterAccess(actor);
+  }
+
+  /// Approval tier needed for Admin (non-Master-Access) to act on `target`.
+  /// Returns null if no approval needed (target is below Deputy rank).
+  /// Returns 'single' if needs 1 of Brigade Commander/Deputy.
+  /// Returns 'double' if needs 2 of Chairperson/Commander/Deputy.
+  static String? adminApprovalTierFor(Member target) {
+    if (target.isChairperson || target.rank == MemberRank.brigadeCommander) {
+      return 'double';
+    }
+    if (target.rank == MemberRank.deputyBrigadeCommander ||
+        target.isBrigadeOfficeChief) {
+      return 'single';
+    }
+    return null; // Platoon Leader and below — Admin can act directly
   }
 }

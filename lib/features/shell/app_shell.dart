@@ -6,6 +6,7 @@ import '../../core/utils/app_utils.dart';
 import '../../data/mock/mock_data.dart';
 import '../auth/auth_provider.dart';
 import '../dashboard/dashboard_screen.dart';
+import '../members/members_screen.dart';
 
 // ─────────────────────────────────────────────
 // NAV ITEM MODEL
@@ -46,7 +47,6 @@ const _navItems = [
   _NavItem(id: 'settings', labelEn: 'Settings', labelMm: 'ဆက်တင်', icon: Icons.settings_outlined, iconFilled: Icons.settings_rounded),
 ];
 
-// Bottom nav items (mobile — most important only)
 const _bottomNavIds = ['dashboard', 'duties', 'meetings', 'blood', 'settings'];
 
 // ─────────────────────────────────────────────
@@ -71,12 +71,10 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = AppResponsive.isDesktop(context);
-
     return isDesktop ? _buildDesktopLayout() : _buildMobileLayout();
   }
 
-  // ─── DESKTOP LAYOUT ───────────────────────
-Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout() {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -114,7 +112,6 @@ Widget _buildDesktopLayout() {
     );
   }
 
-  // ─── MOBILE LAYOUT ────────────────────────
   Widget _buildMobileLayout() {
     final auth = context.watch<AuthProvider>();
     final isEN = auth.language == AppLanguage.english;
@@ -138,7 +135,6 @@ Widget _buildDesktopLayout() {
         indicatorColor: AppColors.primaryLight,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: bottomItems.map((item) {
-          final isSelected = item.id == _currentPage;
           return NavigationDestination(
             icon: Icon(item.icon, color: AppColors.grey500),
             selectedIcon: Icon(item.iconFilled, color: AppColors.primary),
@@ -155,7 +151,7 @@ Widget _buildDesktopLayout() {
 }
 
 // ─────────────────────────────────────────────
-// SIDEBAR (Desktop)
+// SIDEBAR
 // ─────────────────────────────────────────────
 class _Sidebar extends StatelessWidget {
   final String currentPage;
@@ -186,19 +182,15 @@ class _Sidebar extends StatelessWidget {
       color: AppColors.sidebarBg,
       child: Column(
         children: [
-          // Header
           _SidebarHeader(
             collapsed: collapsed,
             isEN: isEN,
             onToggle: onToggleCollapse,
           ),
-
-          // Nav items
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: _navItems.map((item) {
-                // Hide restricted items based on role
                 if (item.requiresPermission) {
                   if (item.id == 'investigation' && !auth.isBrigadeWide) {
                     return const SizedBox.shrink();
@@ -217,8 +209,6 @@ class _Sidebar extends StatelessWidget {
               }).toList(),
             ),
           ),
-
-          // User profile at bottom
           _SidebarUserTile(
             member: member,
             collapsed: collapsed,
@@ -231,6 +221,9 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// SIDEBAR HEADER
+// ─────────────────────────────────────────────
 class _SidebarHeader extends StatelessWidget {
   final bool collapsed;
   final bool isEN;
@@ -242,87 +235,84 @@ class _SidebarHeader extends StatelessWidget {
     required this.onToggle,
   });
 
-@override
-Widget build(BuildContext context) {
-  return Container(
-    height: 64,
-    padding: EdgeInsets.symmetric(
-      horizontal: collapsed ? 0 : 16,
-    ),
-    decoration: const BoxDecoration(
-      border: Border(
-        bottom: BorderSide(color: AppColors.sidebarDivider),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: EdgeInsets.symmetric(horizontal: collapsed ? 0 : 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.sidebarDivider)),
       ),
-    ),
-    child: Row(
-      mainAxisAlignment: collapsed
-          ? MainAxisAlignment.center
-          : MainAxisAlignment.spaceBetween,
-      children: [
-        if (!collapsed) ...[
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text('✚',
-                        style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    isEN ? 'Red Cross' : 'ကြက်ခြေနီ',
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.w800,
+      child: Row(
+        mainAxisAlignment: collapsed
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.spaceBetween,
+        children: [
+          if (!collapsed) ...[
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    child: const Center(
+                      child: Text('✚',
+                          style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900)),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      isEN ? 'Red Cross' : 'ကြက်ခြေနီ',
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ] else ...[
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(8),
+          ] else ...[
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Text('✚',
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900)),
+              ),
             ),
-            child: const Center(
-              child: Text('✚',
-                  style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900)),
+          ],
+          IconButton(
+            onPressed: onToggle,
+            icon: Icon(
+              collapsed ? Icons.chevron_right : Icons.chevron_left,
+              color: AppColors.sidebarSubtext,
+              size: 20,
             ),
           ),
         ],
-        IconButton(
-          onPressed: onToggle,
-          icon: Icon(
-            collapsed ? Icons.chevron_right : Icons.chevron_left,
-            color: AppColors.sidebarSubtext,
-            size: 20,
-          ),
-        ),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 }
 
+// ─────────────────────────────────────────────
+// SIDEBAR ITEM
+// ─────────────────────────────────────────────
 class _SidebarItem extends StatelessWidget {
   final _NavItem item;
   final bool isSelected;
@@ -357,8 +347,7 @@ class _SidebarItem extends StatelessWidget {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
             border: isSelected
-                ? Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3), width: 1)
+                ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1)
                 : null,
           ),
           child: Row(
@@ -377,12 +366,8 @@ class _SidebarItem extends StatelessWidget {
                   child: Text(
                     isEN ? item.labelEn : item.labelMm,
                     style: AppTextStyles.labelMedium.copyWith(
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.sidebarText,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      color: isSelected ? AppColors.primary : AppColors.sidebarText,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -396,6 +381,9 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// SIDEBAR USER TILE
+// ─────────────────────────────────────────────
 class _SidebarUserTile extends StatelessWidget {
   final dynamic member;
   final bool collapsed;
@@ -468,11 +456,10 @@ class _SidebarUserTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// TOP BAR (Desktop)
+// TOP BAR
 // ─────────────────────────────────────────────
 class _TopBar extends StatelessWidget {
   final String currentPage;
-
   const _TopBar({required this.currentPage});
 
   String _getTitle(String page, bool isEN) {
@@ -485,66 +472,49 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final isEN = auth.language == AppLanguage.english;
-    final unread = MockNotifications.unreadCount(
-        auth.currentMember?.id ?? '');
+    final unread = MockNotifications.unreadCount(auth.currentMember?.id ?? '');
 
     return Container(
       height: AppDimensions.topBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: AppDimensions.xxl),
       decoration: const BoxDecoration(
         color: AppColors.white,
-        border: Border(
-          bottom: BorderSide(color: AppColors.grey200),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.grey200)),
       ),
       child: Row(
         children: [
-          Text(
-            _getTitle(currentPage, isEN),
-            style: AppTextStyles.headingMedium,
-          ),
+          Text(_getTitle(currentPage, isEN), style: AppTextStyles.headingMedium),
           const Spacer(),
-
-          // Language toggle
           TextButton.icon(
             onPressed: auth.toggleLanguage,
             icon: const Text('🌐', style: TextStyle(fontSize: 14)),
             label: Text(
               isEN ? 'MM' : 'EN',
-              style: AppTextStyles.labelMedium.copyWith(
-                color: AppColors.grey600,
-              ),
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.grey600),
             ),
           ),
           const SizedBox(width: 8),
-
-          // Notification bell
           Stack(
             children: [
               IconButton(
                 onPressed: () {},
-                icon: const Icon(Icons.notifications_outlined,
-                    color: AppColors.grey600),
+                icon: const Icon(Icons.notifications_outlined, color: AppColors.grey600),
               ),
               if (unread > 0)
                 Positioned(
-                  right: 6,
-                  top: 6,
+                  right: 6, top: 6,
                   child: Container(
-                    width: 16,
-                    height: 16,
+                    width: 16, height: 16,
                     decoration: const BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
-                      child: Text(
-                        unread.toString(),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700),
-                      ),
+                      child: Text(unread.toString(),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ),
@@ -577,8 +547,7 @@ class _MobileAppBar extends StatelessWidget implements PreferredSizeWidget {
     final isEN = auth.language == AppLanguage.english;
     final item = _navItems.firstWhere((i) => i.id == currentPage,
         orElse: () => _navItems.first);
-    final unread = MockNotifications.unreadCount(
-        auth.currentMember?.id ?? '');
+    final unread = MockNotifications.unreadCount(auth.currentMember?.id ?? '');
 
     return AppBar(
       backgroundColor: AppColors.white,
@@ -593,8 +562,7 @@ class _MobileAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 28, height: 28,
             decoration: BoxDecoration(
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(6),
@@ -608,10 +576,8 @@ class _MobileAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            isEN ? item.labelEn : item.labelMm,
-            style: AppTextStyles.headingSmall,
-          ),
+          Text(isEN ? item.labelEn : item.labelMm,
+              style: AppTextStyles.headingSmall),
         ],
       ),
       actions: [
@@ -634,23 +600,19 @@ class _MobileAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             if (unread > 0)
               Positioned(
-                right: 6,
-                top: 6,
+                right: 6, top: 6,
                 child: Container(
-                  width: 16,
-                  height: 16,
+                  width: 16, height: 16,
                   decoration: const BoxDecoration(
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: Text(
-                      unread.toString(),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700),
-                    ),
+                    child: Text(unread.toString(),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ),
               ),
@@ -684,7 +646,6 @@ class _MobileDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -723,15 +684,12 @@ class _MobileDrawer extends StatelessWidget {
             ),
             const Divider(color: AppColors.sidebarDivider, height: 1),
             const SizedBox(height: 8),
-
-            // Nav items
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: _navItems.map((item) {
                   if (item.requiresPermission) {
-                    if (item.id == 'investigation' &&
-                        !auth.isBrigadeWide) {
+                    if (item.id == 'investigation' && !auth.isBrigadeWide) {
                       return const SizedBox.shrink();
                     }
                     if (item.id == 'fund' && !auth.canViewFund) {
@@ -743,43 +701,33 @@ class _MobileDrawer extends StatelessWidget {
                     onTap: () => onNavigate(item.id),
                     leading: Icon(
                       isSelected ? item.iconFilled : item.icon,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.sidebarText,
+                      color: isSelected ? AppColors.primary : AppColors.sidebarText,
                       size: 22,
                     ),
                     title: Text(
                       isEN ? item.labelEn : item.labelMm,
                       style: AppTextStyles.labelMedium.copyWith(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.sidebarText,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                        color: isSelected ? AppColors.primary : AppColors.sidebarText,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                     tileColor: isSelected
                         ? AppColors.primary.withValues(alpha: 0.1)
                         : null,
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppDimensions.radiusMd),
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
                     ),
                   );
                 }).toList(),
               ),
             ),
-
-            // Logout
             const Divider(color: AppColors.sidebarDivider, height: 1),
             ListTile(
               onTap: () {
                 Navigator.pop(context);
                 auth.logout();
               },
-              leading: const Icon(Icons.logout_rounded,
-                  color: AppColors.sidebarSubtext),
+              leading: const Icon(Icons.logout_rounded, color: AppColors.sidebarSubtext),
               title: Text(
                 isEN ? 'Sign Out' : 'ထွက်ရန်',
                 style: AppTextStyles.labelMedium.copyWith(
@@ -800,7 +748,6 @@ class _MobileDrawer extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _PageContent extends StatelessWidget {
   final String currentPage;
-
   const _PageContent({required this.currentPage});
 
   @override
@@ -820,6 +767,8 @@ class _PageContent extends StatelessWidget {
     switch (currentPage) {
       case 'dashboard':
         return const DashboardScreen();
+      case 'members':
+        return const MembersScreen();
       default:
         return _ComingSoonPage(pageId: currentPage);
     }
@@ -831,7 +780,6 @@ class _PageContent extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _ComingSoonPage extends StatelessWidget {
   final String pageId;
-
   const _ComingSoonPage({required this.pageId});
 
   @override
@@ -846,8 +794,7 @@ class _ComingSoonPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 72, height: 72,
             decoration: BoxDecoration(
               color: AppColors.grey100,
               borderRadius: BorderRadius.circular(18),
@@ -855,10 +802,8 @@ class _ComingSoonPage extends StatelessWidget {
             child: Icon(item.icon, size: 32, color: AppColors.grey400),
           ),
           const SizedBox(height: 20),
-          Text(
-            isEN ? item.labelEn : item.labelMm,
-            style: AppTextStyles.headingMedium,
-          ),
+          Text(isEN ? item.labelEn : item.labelMm,
+              style: AppTextStyles.headingMedium),
           const SizedBox(height: 8),
           Text(
             isEN
@@ -878,27 +823,18 @@ class _ComingSoonPage extends StatelessWidget {
 
   String _getModuleNumber(String pageId) {
     const map = {
-      'members': '3',
-      'duties': '4',
-      'meetings': '5',
-      'classes': '6',
-      'blood': '7',
-      'reports': '8',
-      'investigation': '9',
-      'youth': '10',
-      'library': '11',
-      'certificates': '11',
-      'equipment': '12',
-      'fund': '12',
-      'archive': '13',
-      'settings': '14',
+      'members': '3', 'duties': '4', 'meetings': '5',
+      'classes': '6', 'blood': '7', 'reports': '8',
+      'investigation': '9', 'youth': '10', 'library': '11',
+      'certificates': '11', 'equipment': '12', 'fund': '12',
+      'archive': '13', 'settings': '14',
     };
     return map[pageId] ?? '?';
   }
 }
 
 // ─────────────────────────────────────────────
-// SHARED AVATAR WIDGET
+// AVATAR WIDGET
 // ─────────────────────────────────────────────
 class _Avatar extends StatelessWidget {
   final String initials;
@@ -915,8 +851,7 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = AvatarColorGen.fromString(memberId);
     return Container(
-      width: size,
-      height: size,
+      width: size, height: size,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
@@ -942,7 +877,6 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-// Export avatar for use in other screens
 class AppAvatar extends StatelessWidget {
   final String initials;
   final String memberId;
