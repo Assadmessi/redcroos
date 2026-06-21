@@ -1749,6 +1749,32 @@ class MockDuties {
         isEvent: true,
       ),
 
+      // Upcoming large-scale event — Charity Marathon (links to an
+      // Event with positions — see MockEvents below)
+      Duty(
+        id: 'duty7',
+        title: 'Botahtaung Charity Marathon — Medical Coverage',
+        titleMm: 'ဗိုလ်တထောင် မဟာမိတ် မာရသွန် — ကျန်းမာရေးထောက်ပံ့မှု',
+        type: DutyType.eventMedical,
+        scale: DutyScale.largeScale,
+        date: d(14),
+        startHour: 5, startMinute: 0,
+        endHour: 11, endMinute: 0,
+        location: 'Botahtaung Township — Strand Road Route',
+        members: [
+          accepted('m1', DutyRoleInDuty.commander),
+          accepted('m101', DutyRoleInDuty.officer),
+          accepted('m302', DutyRoleInDuty.officer),
+          pending('m109', DutyRoleInDuty.member),
+          accepted('m120', DutyRoleInDuty.member),
+          pending('m306', DutyRoleInDuty.member),
+        ],
+        status: DutyStatus.upcoming,
+        description: 'Medical and safety coverage along the marathon route, with aid stations and a command post.',
+        isEvent: true,
+        eventId: 'event1',
+      ),
+
       // Cancelled duty — example
       Duty(
         id: 'duty6',
@@ -1782,6 +1808,13 @@ class MockDuties {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Adds a newly created duty to the in-memory list, so it actually
+  /// shows up in the Duties screen this session. Replaced by a real
+  /// Supabase insert in Module 16.
+  static void add(Duty duty) {
+    all.add(duty);
   }
 
   /// All DutyMember assignment records for `memberId`, paired with
@@ -2127,7 +2160,169 @@ class MockTransferHistory {
 // MOCK EQUIPMENT — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockEquipment {
-  static final List<Equipment> all = [];
+  static final List<Equipment> all = [
+    Equipment(id: 'eq1', name: 'First Aid Kit (Standard)', nameMm: 'အသက်ဆယ်ယူပစ္စည်းအိတ် (သာမန်)', category: 'Medical', totalQuantity: 20, availableQuantity: 14, condition: 'Good', storageLocation: 'Brigade Office Store Room A'),
+    Equipment(id: 'eq2', name: 'Stretcher', nameMm: 'လေငွေ့ထမ်းစင်', category: 'Medical', totalQuantity: 6, availableQuantity: 5, condition: 'Good', storageLocation: 'Brigade Office Store Room A'),
+    Equipment(id: 'eq3', name: 'Megaphone', nameMm: 'အသံချဲ့စက်', category: 'Communication', totalQuantity: 8, availableQuantity: 6, condition: 'Good', storageLocation: 'Brigade Office Store Room B'),
+    Equipment(id: 'eq4', name: 'Walkie-Talkie Set', nameMm: 'ဝေါ်ကီတေါ်ကီ', category: 'Communication', totalQuantity: 12, availableQuantity: 9, condition: 'Fair', storageLocation: 'Brigade Office Store Room B'),
+    Equipment(id: 'eq5', name: 'Barricade Tape Roll', nameMm: 'အတားအဆီးကြိုးလိပ်', category: 'Safety', totalQuantity: 30, availableQuantity: 22, condition: 'Good', storageLocation: 'Brigade Office Store Room C'),
+    Equipment(id: 'eq6', name: 'Reflective Vest', nameMm: 'အလင်းပြန်အင်္ကျီ', category: 'Safety', totalQuantity: 40, availableQuantity: 35, condition: 'Good', storageLocation: 'Brigade Office Store Room C'),
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 7 ADDITIONS — MockEvents
+//
+// Seeded with one realistic large-scale event (charity marathon
+// along Strand Road, Botahtaung) linked to duty7 above. Positions
+// use real-world coordinates around the Botahtaung/Strand Road area
+// of Yangon so the map renders a believable route layout.
+// ═══════════════════════════════════════════════════════════════
+class MockEvents {
+  static final List<Event> all = _seedEvents();
+
+  static List<Event> _seedEvents() {
+    final now = DateTime.now();
+    DateTime d(int dayOffset) =>
+        DateTime(now.year, now.month, now.day + dayOffset);
+
+    return [
+      Event(
+        id: 'event1',
+        dutyId: 'duty7',
+        title: 'Botahtaung Charity Marathon — Medical Coverage',
+        titleMm: 'ဗိုလ်တထောင် မဟာမိတ် မာရသွန် — ကျန်းမာရေးထောက်ပံ့မှု',
+        date: d(14),
+        startHour: 5, startMinute: 0,
+        endHour: 11, endMinute: 0,
+        location: 'Botahtaung Township — Strand Road Route',
+        latitude: 16.7733, longitude: 96.1689, // Botahtaung jetty area
+        description: 'Medical and safety coverage along the marathon route, with aid stations and a command post.',
+        status: EventStatus.planning,
+        positions: [
+          EventPosition(
+            id: 'pos1',
+            eventId: 'event1',
+            nameEn: 'Command Post — Botahtaung Jetty',
+            type: EventPositionType.command,
+            locationDescription: 'Start/finish line, Botahtaung Jetty',
+            latitude: 16.7733, longitude: 96.1689,
+            requiredMembers: 2,
+            assignedMemberIds: const ['m1'],
+            requiredSkillIds: const ['sk5'], // Leadership
+            equipmentIds: const ['eq3', 'eq4'], // Megaphone, Walkie-talkie
+          ),
+          EventPosition(
+            id: 'pos2',
+            eventId: 'event1',
+            nameEn: 'Aid Station 1 — Strand Road Junction',
+            type: EventPositionType.point,
+            locationDescription: 'Strand Road & Lower Pazundaung Street junction',
+            latitude: 16.7708, longitude: 96.1652,
+            requiredMembers: 3,
+            assignedMemberIds: const ['m101'],
+            requiredSkillIds: const ['sk1'], // First Aid Level 1
+            equipmentIds: const ['eq1', 'eq2'], // First aid kit, Stretcher
+          ),
+          EventPosition(
+            id: 'pos3',
+            eventId: 'event1',
+            nameEn: 'Aid Station 2 — Pansodan Junction',
+            type: EventPositionType.point,
+            locationDescription: 'Strand Road & Pansodan Street junction',
+            latitude: 16.7726, longitude: 96.1583,
+            requiredMembers: 3,
+            assignedMemberIds: const [],
+            requiredSkillIds: const ['sk1'],
+            equipmentIds: const ['eq1', 'eq2'],
+          ),
+          EventPosition(
+            id: 'pos4',
+            eventId: 'event1',
+            nameEn: 'Mobile Patrol — Route Midpoint',
+            type: EventPositionType.patrol,
+            locationDescription: 'Patrolling Strand Road between aid stations',
+            latitude: 16.7717, longitude: 96.1618,
+            requiredMembers: 2,
+            assignedMemberIds: const ['m120'],
+            requiredSkillIds: const ['sk1'],
+            equipmentIds: const ['eq4', 'eq6'], // Walkie-talkie, Vest
+            // Patrols only this stretch — Aid Station 1 to the
+            // midpoint — NOT the full marathon route, demonstrating
+            // that a patrol's path doesn't have to cover everything.
+            patrolPath: const [
+              RouteWaypoint(latitude: 16.7708, longitude: 96.1652, label: 'Aid Station 1'),
+              RouteWaypoint(latitude: 16.7717, longitude: 96.1618, label: 'Midpoint'),
+            ],
+          ),
+          EventPosition(
+            id: 'pos5',
+            eventId: 'event1',
+            nameEn: 'Standby — Reserve Team',
+            type: EventPositionType.standby,
+            locationDescription: 'Brigade Office, on call for overflow',
+            latitude: 16.7745, longitude: 96.1701,
+            requiredMembers: 2,
+            assignedMemberIds: const [],
+            requiredSkillIds: const [],
+            equipmentIds: const ['eq1'],
+          ),
+        ],
+        routes: [
+          EventRoute(
+            id: 'route1',
+            eventId: 'event1',
+            name: 'Main Route — Strand Road Out-and-Back',
+            colorHex: '#1D9E75', // teal
+            waypoints: const [
+              RouteWaypoint(latitude: 16.7733, longitude: 96.1689, label: 'Start — Botahtaung Jetty'),
+              RouteWaypoint(latitude: 16.7720, longitude: 96.1665),
+              RouteWaypoint(latitude: 16.7708, longitude: 96.1652, label: 'Aid Station 1 — Strand Rd Junction'),
+              RouteWaypoint(latitude: 16.7717, longitude: 96.1618, label: 'Midpoint — Patrol Zone'),
+              RouteWaypoint(latitude: 16.7726, longitude: 96.1583, label: 'Aid Station 2 — Pansodan Junction'),
+              RouteWaypoint(latitude: 16.7717, longitude: 96.1618),
+              RouteWaypoint(latitude: 16.7708, longitude: 96.1652),
+              RouteWaypoint(latitude: 16.7720, longitude: 96.1665),
+              RouteWaypoint(latitude: 16.7733, longitude: 96.1689, label: 'Finish — Botahtaung Jetty'),
+            ],
+          ),
+        ],
+      ),
+    ];
+  }
+
+  static Event? findById(String id) {
+    try {
+      return all.firstWhere((e) => e.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Adds a newly created event to the in-memory list. Replaced by a
+  /// real Supabase insert in Module 16.
+  static void add(Event event) {
+    all.add(event);
+  }
+
+  /// Replaces an existing event by id (e.g. after setting the venue
+  /// location, or adding/editing positions and routes).
+  static void update(Event updated) {
+    final index = all.indexWhere((e) => e.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  static Event? findByDutyId(String dutyId) {
+    try {
+      return all.firstWhere((e) => e.dutyId == dutyId);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

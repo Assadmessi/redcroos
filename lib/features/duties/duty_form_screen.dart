@@ -7,6 +7,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_utils.dart';
 import '../../core/utils/permission_service.dart';
 import '../auth/auth_provider.dart';
+import 'widgets/location_search_field.dart';
+import '../events/event_detail_screen.dart';
 
 class DutyFormScreen extends StatefulWidget {
   final Duty? duty; // null = create new, non-null = edit
@@ -121,7 +123,7 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
         DutyRoleInDuty.member => 'Member',
       };
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_date == null || _startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,14 +137,135 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
       );
       return;
     }
+    final hasCommanderOrOfficer = _selectedMembers.values.any(
+      (role) => role == DutyRoleInDuty.commander || role == DutyRoleInDuty.officer,
+    );
+    if (!hasCommanderOrOfficer) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('At least one assigned member must be a Commander or Officer')),
+      );
+      return;
+    }
 
-    // Building the Duty object — wiring to MockDuties / Supabase
-    // happens when the data layer is connected (Module 16). For now
-    // this confirms the form captures every required field correctly.
-    Navigator.pop(context, true);
+    final dutyId = widget.duty?.id ?? 'duty_${DateTime.now().microsecondsSinceEpoch}';
+    final isLargeScale = _scale == DutyScale.largeScale;
+    // For a new large-scale duty, set up the link to an Event now so
+    // the duty carries isEvent/eventId from the moment it's created —
+    // the actual venue location and positions are filled in via the
+    // follow-up prompt below, not inline in this form (per the agreed
+    // flow: save the duty first, then prompt to set up the event).
+    final eventId = isLargeScale
+        ? (widget.duty?.eventId ?? 'event_${DateTime.now().microsecondsSinceEpoch}')
+        : null;
+
+    final duty = Duty(
+      id: dutyId,
+      title: _titleCtrl.text.trim(),
+      titleMm: _titleMmCtrl.text.trim(),
+      type: _type,
+      scale: _scale,
+      date: _date!,
+      startHour: _startTime!.hour,
+      startMinute: _startTime!.minute,
+      endHour: _endTime?.hour,
+      endMinute: _endTime?.minute,
+      location: _locationCtrl.text.trim().isEmpty
+          ? (isLargeScale ? 'To be set via event map' : _locationCtrl.text.trim())
+          : _locationCtrl.text.trim(),
+      members: _selectedMembers.entries
+          .map((entry) => DutyMember(
+                memberId: entry.key,
+                roleInDuty: entry.value,
+                status: DutyAssignmentStatus.pending,
+                assignedAt: DateTime.now(),
+              ))
+          .toList(),
+      status: widget.duty?.status ?? DutyStatus.upcoming,
+      description: _descriptionCtrl.text.trim().isEmpty ? null : _descriptionCtrl.text.trim(),
+      isEvent: isLargeScale,
+      eventId: eventId,
+    );
+
+    if (_isEdit) {
+      final index = MockDuties.all.indexWhere((d) => d.id == dutyId);
+      if (index != -1) MockDuties.all[index] = duty;
+    } else {
+      MockDuties.add(duty);
+    }
+
+    // New large-scale duty with no event set up yet — create a bare
+    // Event shell now (no venue/positions) so EventDetailScreen has
+    // something to attach the map setup to.
+    if (isLargeScale && eventId != null && MockEvents.findById(eventId) == null) {
+      MockEvents.add(Event(
+        id: eventId,
+        dutyId: dutyId,
+        title: duty.title,
+        titleMm: duty.titleMm,
+        date: duty.date,
+        startHour: duty.startHour,
+        startMinute: duty.startMinute,
+        endHour: duty.endHour,
+        endMinute: duty.endMinute,
+        location: duty.location,
+        positions: const [],
+        status: EventStatus.planning,
+      ));
+    }
+
+    // Per the agreed flow: save first, then prompt to set up the
+    // event's venue location and positions as a follow-up step.
+    //
+    // IMPORTANT: this dialog must be shown and resolved BEFORE
+    // popping this screen — Navigator.pop() unmounts DutyFormScreen,
+    // and using its `context` afterward (for showDialog or
+    // ScaffoldMessenger) throws "widget has been unmounted" since
+    // the BuildContext no longer has a live ancestor tree. Showing
+    // the dialog first, and showing the snackbar BEFORE popping (not
+    // after), keeps every context use on a still-mounted widget.
+    bool openEventSetup = false;
+    if (isLargeScale && eventId != null && !_isEdit) {
+      openEventSetup = await _promptEventSetup();
+      if (!mounted) return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_isEdit ? 'Duty updated' : 'Duty created')),
     );
+    final navigator = Navigator.of(context);
+    navigator.pop(true);
+
+    if (openEventSetup) {
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => EventDetailScreen(eventId: eventId!),
+        ),
+      );
+    }
+  }
+
+  Future<bool> _promptEventSetup() async {
+    final shouldSetUpNow = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Set Up Event Details'),
+        content: const Text(
+          'This is a large-scale duty. Would you like to set the event venue '
+          'on the map now and add positions (aid stations, command post, routes)?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Set Up Now'),
+          ),
+        ],
+      ),
+    );
+    return shouldSetUpNow ?? false;
   }
 
   @override
@@ -154,7 +277,7 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text('SAVE', style: TextStyle(color: Colors.white)),
+            child: const Text('SAVE', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -180,7 +303,25 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
               ),
             ]),
             _sectionCard('Location & Notes', [
-              _textField(_locationCtrl, 'Location', required: true),
+              if (_scale == DutyScale.largeScale)
+                Row(
+                  children: [
+                    Icon(Icons.map_outlined, size: 18, color: AppColors.grey500),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Venue will be set on the map after saving — no need to type a location here.',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                LocationSearchField(
+                  controller: _locationCtrl,
+                  label: 'Location',
+                  required: true,
+                ),
               _textField(_descriptionCtrl, 'Description / Notes', maxLines: 3),
             ]),
             _sectionCard('Assigned Members', [

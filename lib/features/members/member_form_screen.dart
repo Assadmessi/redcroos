@@ -120,13 +120,17 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     // Company Commander / Deputy Company Commander of the same company
     // for approval (see PermissionService.canApproveNewMemberProposal).
     // That approval queue UI will be built alongside the data layer.
-    Navigator.pop(context, true);
     final message = widget.isProposal
         ? 'Member proposal submitted — pending Company Commander approval'
         : (_isEdit ? 'Member updated' : 'Member added');
+    // Show the snackbar BEFORE popping — Navigator.pop() unmounts this
+    // widget, and using its `context` afterward (e.g. for
+    // ScaffoldMessenger) can throw "widget has been unmounted" since
+    // the BuildContext no longer has a live ancestor tree.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+    Navigator.pop(context, true);
   }
 
   @override
@@ -141,7 +145,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         actions: [
           TextButton(
             onPressed: _save,
-            child: Text(saveLabel, style: const TextStyle(color: Colors.white)),
+            child: Text(saveLabel, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -203,7 +207,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                    Icon(Icons.info_outline, size: 18, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

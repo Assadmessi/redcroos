@@ -101,6 +101,15 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canDeleteDuty(_currentMember!, duty);
 
+  // ── Module 7 additions: Events & Positional Duty ──
+  bool get canManageEvent =>
+      _currentMember != null &&
+      PermissionService.canManageEvent(_currentMember!);
+
+  bool canAssignToPosition(Duty hostDuty) =>
+      _currentMember != null &&
+      PermissionService.canAssignToPosition(_currentMember!, hostDuty);
+
   bool canEditDuty(Duty duty) =>
       _currentMember != null &&
       PermissionService.canEditDuty(_currentMember!, duty);

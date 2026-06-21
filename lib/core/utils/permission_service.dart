@@ -479,6 +479,28 @@ class PermissionService {
     return hasAdminOrMasterAccess(member);
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // MODULE 7 ADDITIONS — Events & Positional Duty
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` create/edit/delete an Event or its EventPositions
+  /// (name, type, location, required members/skills/equipment)?
+  /// Master Access only — same tier as Duty create/edit/cancel/delete
+  /// in Module 6, since this is a structural decision about the event
+  /// itself, not an in-the-moment operational one.
+  static bool canManageEvent(Member member) => hasAdminOrMasterAccess(member);
+
+  /// Can `member` assign/unassign members to a specific position
+  /// within an event? Master Access OR whoever holds commander/officer
+  /// role on the event's linked Duty (mirrors canMarkDutyComplete's
+  /// exception in Module 6) — `hostDuty` is the Duty this event
+  /// belongs to (Event.dutyId), passed in by the caller since Event
+  /// doesn't hold a direct Duty reference.
+  static bool canAssignToPosition(Member member, Duty hostDuty) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return canMakeDecisionInDuty(member, hostDuty);
+  }
+
   // Two separate questions, deliberately kept apart:
   //   1. canSeeInMemberList — does this member show up at all when
   //      `viewer` searches/browses the Members list? (Brigade-wide

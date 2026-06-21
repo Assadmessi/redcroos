@@ -74,7 +74,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   void _showInactiveLeaveRequestDialog(AuthProvider auth, {required bool goingInactive}) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(goingInactive ? 'Request Inactive (Long Leave)' : 'Request Return to Active'),
         content: Text(
           _member.id == auth.currentMember?.id
@@ -82,10 +82,13 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
               : "This will send a request to your higher rank to confirm ${_member.nameEn}'s status change.",
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               if (goingInactive) {
                 _showInactiveLeaveDetailForm(auth, applyDirectly: false);
               } else {

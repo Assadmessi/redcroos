@@ -726,6 +726,15 @@ class EventPosition {
   final List<String> assignedMemberIds;
   final List<String> requiredSkillIds;
   final List<String> equipmentIds;
+  // Only meaningful when type == EventPositionType.patrol. If null/
+  // empty, the patrol covers only the single point above (latitude/
+  // longitude) rather than a path — i.e. NOT the full event route.
+  // Populated either by selecting a segment of an existing EventRoute
+  // (a sub-range of its waypoints) or by drawing an independent path
+  // just for this position — both end up as a plain waypoint list,
+  // so the rest of the app (map rendering, etc.) doesn't need to
+  // care which source it came from.
+  final List<RouteWaypoint> patrolPath;
 
   const EventPosition({
     required this.id,
@@ -739,7 +748,10 @@ class EventPosition {
     required this.assignedMemberIds,
     required this.requiredSkillIds,
     required this.equipmentIds,
+    this.patrolPath = const [],
   });
+
+  bool get hasPatrolPath => type == EventPositionType.patrol && patrolPath.length >= 2;
 
   bool get isFilled => assignedMemberIds.length >= requiredMembers;
 
@@ -1427,4 +1439,109 @@ class AvailabilityRangeHelper {
 
     return ranges;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 7 ADDITIONS — Event model
+//
+// EventPosition already existed (Module 3) but had no parent
+// container to hold a list of positions for one event. Event fills
+// that gap. It links back to the large-scale Duty that "hosts" it
+// via dutyId — the Duty itself still handles the overall roster,
+// accept/reject, and commander/officer roles (Module 6); Event adds
+// the position layer (where specifically each assigned member is
+// stationed) on top of that.
+// ═══════════════════════════════════════════════════════════════
+enum EventStatus { planning, active, completed, cancelled }
+
+class Event {
+  final String id;
+  final String dutyId; // the large-scale Duty this event belongs to
+  final String title;
+  final String titleMm;
+  final DateTime date;
+  final int startHour;
+  final int startMinute;
+  final int? endHour;
+  final int? endMinute;
+  final String location;
+  final double? latitude;  // map center / venue reference point
+  final double? longitude;
+  final String? description;
+  final List<EventPosition> positions;
+  final List<EventRoute> routes;
+  final EventStatus status;
+
+  const Event({
+    required this.id,
+    required this.dutyId,
+    required this.title,
+    required this.titleMm,
+    required this.date,
+    required this.startHour,
+    required this.startMinute,
+    this.endHour,
+    this.endMinute,
+    required this.location,
+    this.latitude,
+    this.longitude,
+    this.description,
+    required this.positions,
+    this.routes = const [],
+    required this.status,
+  });
+
+  String get startTimeDisplay =>
+      '${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')}';
+
+  int get totalRequired =>
+      positions.fold(0, (sum, p) => sum + p.requiredMembers);
+
+  int get totalAssigned =>
+      positions.fold(0, (sum, p) => sum + p.assignedMemberIds.length);
+
+  bool get allPositionsFilled => positions.every((p) => p.isFilled);
+
+  List<EventPosition> get unfilledPositions =>
+      positions.where((p) => !p.isFilled).toList();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 7 ADDITIONS — Event Route
+//
+// An event can have multiple named route segments (e.g. the main
+// marathon path plus a detour). Each route is an ordered list of
+// waypoints, drawn as a polyline on the map. Waypoints are entered
+// either by tapping the map in sequence (primary method) or by
+// manual lat/long entry (fallback — e.g. pasting coordinates copied
+// from elsewhere).
+// ═══════════════════════════════════════════════════════════════
+class RouteWaypoint {
+  final double latitude;
+  final double longitude;
+  final String? label; // optional, e.g. "Turn onto Pansodan St"
+
+  const RouteWaypoint({
+    required this.latitude,
+    required this.longitude,
+    this.label,
+  });
+}
+
+class EventRoute {
+  final String id;
+  final String eventId;
+  final String name; // e.g. "Main Route", "Detour B"
+  final String? colorHex; // optional, for distinguishing multiple routes on the map
+  final List<RouteWaypoint> waypoints; // ordered — first to last
+
+  const EventRoute({
+    required this.id,
+    required this.eventId,
+    required this.name,
+    this.colorHex,
+    required this.waypoints,
+  });
+
+  bool get hasEnoughPointsToDraw => waypoints.length >= 2;
 }

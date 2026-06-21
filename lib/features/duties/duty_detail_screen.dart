@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_utils.dart';
 import '../auth/auth_provider.dart';
+import '../events/event_detail_screen.dart';
 import 'duty_form_screen.dart';
 
 class DutyDetailScreen extends StatefulWidget {
@@ -69,15 +70,18 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
   void _cancelDuty() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Cancel Duty'),
         content: const Text('Are you sure you want to cancel this duty? This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('No'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               setState(() {
                 _duty = _copyWithStatus(_duty, DutyStatus.cancelled);
               });
@@ -100,22 +104,34 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
   void _deleteDuty() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Duty'),
         content: const Text(
           'Are you sure you want to permanently delete this duty? '
           'Unlike cancelling, this removes the record entirely and cannot be undone.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('No'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              Navigator.pop(context); // close dialog
-              Navigator.pop(context); // return to duties list
+              Navigator.pop(dialogContext); // close dialog only
+
+              MockDuties.all.removeWhere((d) => d.id == _duty.id);
+
+              // Capture the Navigator and show the snackbar BEFORE
+              // popping this screen — Navigator.pop() unmounts
+              // DutyDetailScreen, and using its `context` afterward
+              // (for ScaffoldMessenger) throws "widget has been
+              // unmounted". Grabbing NavigatorState first lets us
+              // pop safely after the context-dependent work is done.
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Duty deleted')),
               );
+              Navigator.of(context).pop(); // return to duties list
             },
             child: const Text('Yes, Delete'),
           ),
@@ -228,6 +244,19 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
             _infoRow(Icons.location_on_outlined, 'Location', _duty.location),
             if (_duty.description != null && _duty.description!.isNotEmpty)
               _infoRow(Icons.notes_outlined, 'Notes', _duty.description!),
+            if (_duty.isEvent && _duty.eventId != null && MockEvents.findById(_duty.eventId!) != null) ...[
+              const Divider(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EventDetailScreen(eventId: _duty.eventId!),
+                  ),
+                ),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('View Event Positions & Map'),
+              ),
+            ],
           ],
         ),
       ),
