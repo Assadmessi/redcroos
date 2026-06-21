@@ -253,6 +253,15 @@ enum DutyRoleInDuty {
 enum AvailabilityStatus { free, busy, maybe, notSet }
 
 // ─────────────────────────────────────────────────────────────
+// MODULE 5 ADDITIONS — Calendar day-level availability status
+// Deliberately a SEPARATE enum from AvailabilityStatus above, which
+// is used for duty-response style free/busy/maybe and is unrelated.
+// This one represents a single calendar day's status on a member's
+// monthly availability calendar.
+// ─────────────────────────────────────────────────────────────
+enum DayAvailabilityStatus { available, notAvailable, onLeave }
+
+// ─────────────────────────────────────────────────────────────
 // EVENT POSITION TYPES
 // ─────────────────────────────────────────────────────────────
 enum EventPositionType { base, point, patrol, standby, command, liaison }

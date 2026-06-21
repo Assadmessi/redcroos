@@ -1660,18 +1660,247 @@ class MockBloodDonors {
 // MOCK NOTIFICATIONS — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockNotifications {
+  // In-memory store — resets on app restart, replaced by Supabase in
+  // Module 16.
   static final List<AppNotification> all = [];
 
-  static List<AppNotification> forMember(String memberId) => [];
+  static List<AppNotification> forMember(String memberId) {
+    return all.where((n) => n.recipientId == memberId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
 
-  static int unreadCount(String memberId) => 0;
+  static int unreadCount(String memberId) {
+    return all.where((n) => n.recipientId == memberId && !n.isRead).length;
+  }
+
+  static void add(AppNotification notification) {
+    all.add(notification);
+  }
+
+  /// Sends an availability-change notification up the FULL chain of
+  /// command from `member` to Brigade Office — not just the immediate
+  /// higher rank. Used when a member changes their own short-term
+  /// Available/Not Available status, which applies immediately with
+  /// no approval needed; this is purely an FYI to leadership.
+  ///
+  /// Chain walked: member's direct higher rank → their higher rank →
+  /// ... → Brigade Office. Determined structurally from unit
+  /// assignment (section → platoon → company → brigade), not by
+  /// walking actual person-to-person rank order, since multiple
+  /// people can hold the same supervisory tier.
+  static void notifyChainOfCommandOfAvailabilityChange({
+    required Member member,
+    required bool isNowAvailable,
+  }) {
+    final recipients = _chainOfCommandFor(member);
+    final statusText = isNowAvailable ? 'Available' : 'Not Available';
+
+    for (final recipient in recipients) {
+      add(AppNotification(
+        id: 'notif_${DateTime.now().microsecondsSinceEpoch}_${recipient.id}',
+        recipientId: recipient.id,
+        title: 'Availability Update',
+        body: '${member.nameEn} (${member.rankNameEn}) marked themselves $statusText.',
+        type: NotificationType.availability,
+        priority: NotificationPriority.normal,
+        isRead: false,
+        createdAt: DateTime.now(),
+        routeTo: 'members/${member.id}',
+      ));
+    }
+  }
+
+  /// Walks up the chain of command for `member`: direct higher-rank
+  /// supervisors at section → platoon → company level, plus all of
+  /// Brigade Office at the top, regardless of how many tiers exist
+  /// in between. Skips levels that don't apply (e.g. a member with no
+  /// platoon assignment skips straight to company/brigade).
+  static List<Member> _chainOfCommandFor(Member member) {
+    final all = MockMembers.all.where((m) => m.nameEn.isNotEmpty);
+    final chain = <Member>[];
+
+    void addIfNotSelf(Iterable<Member> candidates) {
+      for (final c in candidates) {
+        if (c.id != member.id && !chain.any((existing) => existing.id == c.id)) {
+          chain.add(c);
+        }
+      }
+    }
+
+    // Section level (Deputy Section Leader -> Section Leader)
+    if (member.sectionNo != null) {
+      addIfNotSelf(all.where((m) =>
+          m.companyNo == member.companyNo &&
+          m.platoonNo == member.platoonNo &&
+          m.sectionNo == member.sectionNo &&
+          m.rank == MemberRank.sectionLeader));
+    }
+
+    // Platoon level (Platoon Sergeant, Platoon Leader)
+    if (member.platoonNo != null) {
+      addIfNotSelf(all.where((m) =>
+          m.companyNo == member.companyNo &&
+          m.platoonNo == member.platoonNo &&
+          (m.rank == MemberRank.platoonSergeant ||
+              m.rank == MemberRank.platoonLeader)));
+    }
+
+    // Company level (Company Sergeant Major, Deputy/Company Commander)
+    if (member.companyNo != null) {
+      addIfNotSelf(all.where((m) =>
+          m.companyNo == member.companyNo &&
+          (m.rank == MemberRank.companySergeantMajor ||
+              m.rank == MemberRank.deputyCompanyCommander ||
+              m.rank == MemberRank.companyCommander)));
+    }
+
+    // Brigade Office — always included at the top of the chain
+    addIfNotSelf(all.where((m) => m.unitType == UnitType.brigadeOffice));
+
+    return chain;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MOCK AVAILABILITY — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockAvailability {
-  static List<MemberAvailability> forMemberThisMonth(String memberId) => [];
+  // In-memory store — resets on app restart, replaced by Supabase in
+  // Module 16. Seeded with a few sample entries so the calendar UI has
+  // something to render during development.
+  static final List<AvailabilityEntry> _entries = _seedEntries();
+
+  static List<AvailabilityEntry> _seedEntries() {
+    final now = DateTime.now();
+    DateTime d(int dayOffset) =>
+        DateTime(now.year, now.month, now.day + dayOffset);
+
+    // Real (non-vacant) members across Company 1 and Company 3 —
+    // used to seed a deterministic but varied pattern so the unit
+    // summary breakdown (by company/platoon/section) and the day
+    // trend chart (today/week/month) have meaningful data to show.
+    const company1MemberIds = [
+      'm101', 'm102', 'm103', 'm105', 'm106', 'm107', 'm108', 'm109',
+      'm110', 'm111', 'm112', 'm113', 'm114', 'm115', 'm116', 'm117',
+      'm118', 'm119', 'm120', 'm121', 'm122', 'm124', 'm125', 'm126',
+      'm127',
+    ];
+    const company3MemberIds = [
+      'm302', 'm303', 'm304', 'm305', 'm306', 'm307', 'm308', 'm309',
+      'm310', 'm311', 'm312', 'm313', 'm314', 'm315', 'm318', 'm319',
+      'm320', 'm321', 'm322', 'm323', 'm324', 'm326', 'm327',
+    ];
+    final allIds = [...company1MemberIds, ...company3MemberIds];
+
+    final entries = <AvailabilityEntry>[];
+    var counter = 0;
+
+    // Deterministic pattern across a -10..+20 day window (covers last
+    // week, this week, and this month comfortably either side of
+    // today): each member has a short "not available" block on a
+    // day offset derived from their position in the list, so the
+    // pattern is spread out rather than everyone clustering on the
+    // same days. Roughly 1 in 4 members get a block in any given week.
+    for (var i = 0; i < allIds.length; i++) {
+      final memberId = allIds[i];
+
+      // Stagger start day using member index so blocks spread across
+      // the whole window instead of bunching up.
+      final startOffset = -10 + ((i * 3) % 28);
+      final blockLength = 1 + (i % 3); // 1, 2, or 3 day blocks
+      final groupId = 'rg_seed_$i';
+
+      for (var dayInBlock = 0; dayInBlock < blockLength; dayInBlock++) {
+        counter++;
+        entries.add(AvailabilityEntry(
+          id: 'ae_seed_$counter',
+          memberId: memberId,
+          date: d(startOffset + dayInBlock),
+          status: DayAvailabilityStatus.notAvailable,
+          rangeGroupId: blockLength > 1 ? groupId : null,
+        ));
+      }
+    }
+
+    return entries;
+  }
+
+  static List<AvailabilityEntry> forMember(String memberId) {
+    return _entries.where((e) => e.memberId == memberId).toList();
+  }
+
+  static List<AvailabilityEntry> forMemberInMonth(
+    String memberId,
+    int year,
+    int month,
+  ) {
+    return _entries
+        .where((e) =>
+            e.memberId == memberId &&
+            e.date.year == year &&
+            e.date.month == month)
+        .toList();
+  }
+
+  static List<AvailabilityEntry> forMembersOnDate(
+    List<String> memberIds,
+    DateTime date,
+  ) {
+    return _entries
+        .where((e) => memberIds.contains(e.memberId) && e.isOnDate(date))
+        .toList();
+  }
+
+  /// Set a single day's status directly (Master Access/Admin path, or
+  /// applying an already-approved request). Replaces any existing
+  /// entry for that member+date.
+  static void setDay({
+    required String memberId,
+    required DateTime date,
+    required DayAvailabilityStatus status,
+    String? reason,
+    String? rangeGroupId,
+  }) {
+    _entries.removeWhere((e) => e.memberId == memberId && e.isOnDate(date));
+    _entries.add(AvailabilityEntry(
+      id: 'ae_${DateTime.now().microsecondsSinceEpoch}',
+      memberId: memberId,
+      date: DateTime(date.year, date.month, date.day),
+      status: status,
+      rangeGroupId: rangeGroupId,
+      reason: reason,
+    ));
+  }
+
+  /// Set a date range (inclusive) all at once, sharing one rangeGroupId
+  /// so they collapse into a single visual block.
+  static void setRange({
+    required String memberId,
+    required DateTime startDate,
+    required DateTime endDate,
+    required DayAvailabilityStatus status,
+    String? reason,
+  }) {
+    final groupId = 'rg_${DateTime.now().microsecondsSinceEpoch}';
+    var current = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+    while (!current.isAfter(end)) {
+      setDay(
+        memberId: memberId,
+        date: current,
+        status: status,
+        reason: reason,
+        rangeGroupId: groupId,
+      );
+      current = current.add(const Duration(days: 1));
+    }
+  }
+
+  /// Clear a single day back to default (no entry = implicitly
+  /// available, per the existing isAvailable/status fields).
+  static void clearDay({required String memberId, required DateTime date}) {
+    _entries.removeWhere((e) => e.memberId == memberId && e.isOnDate(date));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

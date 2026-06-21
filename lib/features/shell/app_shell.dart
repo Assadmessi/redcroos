@@ -7,6 +7,8 @@ import '../../data/mock/mock_data.dart';
 import '../auth/auth_provider.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../members/members_screen.dart';
+import '../availability/my_availability_screen.dart';
+import '../availability/unit_availability_screen.dart';
 
 // ─────────────────────────────────────────────
 // NAV ITEM MODEL
@@ -32,6 +34,8 @@ class _NavItem {
 const _navItems = [
   _NavItem(id: 'dashboard', labelEn: 'Dashboard', labelMm: 'ဒက်ရှ်ဘုတ်', icon: Icons.dashboard_outlined, iconFilled: Icons.dashboard_rounded),
   _NavItem(id: 'members', labelEn: 'Members', labelMm: 'အဖွဲ့ဝင်များ', icon: Icons.group_outlined, iconFilled: Icons.group_rounded),
+  _NavItem(id: 'my_availability', labelEn: 'My Availability', labelMm: 'ကိုယ်ပိုင်အားလပ်ချိန်', icon: Icons.event_available_outlined, iconFilled: Icons.event_available_rounded),
+  _NavItem(id: 'unit_availability', labelEn: 'Unit Availability', labelMm: 'တပ်ဖွဲ့ အားလပ်ချိန်', icon: Icons.event_note_outlined, iconFilled: Icons.event_note_rounded, requiresPermission: true),
   _NavItem(id: 'duties', labelEn: 'Duties', labelMm: 'တာဝန်များ', icon: Icons.calendar_today_outlined, iconFilled: Icons.calendar_today_rounded),
   _NavItem(id: 'meetings', labelEn: 'Meetings', labelMm: 'အစည်းအဝေး', icon: Icons.groups_outlined, iconFilled: Icons.groups_rounded),
   _NavItem(id: 'classes', labelEn: 'Classes', labelMm: 'သင်တန်းများ', icon: Icons.school_outlined, iconFilled: Icons.school_rounded),
@@ -196,6 +200,9 @@ class _Sidebar extends StatelessWidget {
                     return const SizedBox.shrink();
                   }
                   if (item.id == 'fund' && !auth.canViewFund) {
+                    return const SizedBox.shrink();
+                  }
+                  if (item.id == 'unit_availability' && !auth.canAssignDuty) {
                     return const SizedBox.shrink();
                   }
                 }
@@ -695,6 +702,9 @@ class _MobileDrawer extends StatelessWidget {
                     if (item.id == 'fund' && !auth.canViewFund) {
                       return const SizedBox.shrink();
                     }
+                    if (item.id == 'unit_availability' && !auth.canAssignDuty) {
+                      return const SizedBox.shrink();
+                    }
                   }
                   final isSelected = currentPage == item.id;
                   return ListTile(
@@ -769,6 +779,10 @@ class _PageContent extends StatelessWidget {
         return const DashboardScreen();
       case 'members':
         return const MembersScreen();
+      case 'my_availability':
+        return const MyAvailabilityScreen();
+      case 'unit_availability':
+        return const UnitAvailabilityScreen();
       default:
         return _ComingSoonPage(pageId: currentPage);
     }

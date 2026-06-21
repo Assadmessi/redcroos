@@ -27,38 +27,17 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   }
 
   void _toggleAvailability(AuthProvider auth) {
-    final canDirect = auth.canToggleAvailabilityDirectly(_member);
-    if (canDirect) {
-      setState(() => _member = _member.copyWith(isAvailable: !_member.isAvailable));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_member.isAvailable ? 'Marked Available' : 'Marked Not Available')),
-      );
-      return;
-    }
-
-    // Self or higher-rank request flow
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Request Availability Change'),
-        content: Text(
-          _member.id == auth.currentMember?.id
-              ? 'This will send a request to your higher rank for approval.'
-              : "This will send a request to your higher rank to confirm ${_member.nameEn}'s availability change.",
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Request sent for approval')),
-              );
-            },
-            child: const Text('Send Request'),
-          ),
-        ],
-      ),
+    // Available/Not Available is always a direct change now — no
+    // approval step. We still notify the member's full chain of
+    // command up to Brigade Office as an FYI.
+    final newAvailability = !_member.isAvailable;
+    setState(() => _member = _member.copyWith(isAvailable: newAvailability));
+    MockNotifications.notifyChainOfCommandOfAvailabilityChange(
+      member: _member,
+      isNowAvailable: newAvailability,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(newAvailability ? 'Marked Available' : 'Marked Not Available')),
     );
   }
 

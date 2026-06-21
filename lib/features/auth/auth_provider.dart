@@ -129,10 +129,6 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canToggleAvailabilityDirectly(_currentMember!, target);
 
-  bool canRequestAvailabilityToggle(Member target) =>
-      _currentMember != null &&
-      PermissionService.canRequestAvailabilityToggle(_currentMember!, target);
-
   // ── Module 4 additions: Active/Inactive (long leave/overseas) ──
   // Same request/approval pattern as availability above, but for the
   // long-term Active ↔ Inactive status (going overseas, extended

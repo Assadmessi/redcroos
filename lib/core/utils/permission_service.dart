@@ -556,24 +556,18 @@ class PermissionService {
   }
 
   /// Can `actor` toggle `target`'s availability directly (no approval)?
+  /// Available/Not Available is ALWAYS a direct change — no approval
+  /// step for anyone, at any rank, changing their own OR someone
+  /// else's short-term availability. The only requirement is that the
+  /// actor can see/manage the target at all (existing canViewMember
+  /// scope still applies — this doesn't bypass who can act on whom,
+  /// it just removes the approval gate for availability specifically).
+  /// A notification is sent up the target's full chain of command as
+  /// an FYI — see MockNotifications.notifyChainOfCommandOfAvailabilityChange.
   static bool canToggleAvailabilityDirectly(Member actor, Member target) {
-    return hasAdminOrMasterAccess(actor);
-  }
-
-  /// Can `actor` request to toggle `target`'s availability
-  /// (requires approval from actor's own higher rank)?
-  static bool canRequestAvailabilityToggle(Member actor, Member target) {
-    if (hasAdminOrMasterAccess(actor)) return true; // direct, not request
-
-    // Self-request: any member can request their own availability change
     if (actor.id == target.id) return true;
-
-    // Higher rank requesting for someone below them, same unit scope
-    final actorIsHigher = RankHelper.isHigherThan(actor.rank, target.rank);
-    if (!actorIsHigher) return false;
-
-    if (actor.unitType == UnitType.brigadeOffice) return true;
-    return actor.companyNo == target.companyNo;
+    if (hasAdminOrMasterAccess(actor)) return true;
+    return canViewMember(actor, target);
   }
 
   /// Active/Inactive status — direct change, no approval. ONLY Master

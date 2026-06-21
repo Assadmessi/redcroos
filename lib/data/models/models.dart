@@ -1312,3 +1312,119 @@ class DispatchRecord {
     this.quota,
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 5 ADDITIONS — Availability Calendar
+// ═══════════════════════════════════════════════════════════════
+
+/// One calendar day's availability status for a member.
+///
+/// Stored per-day (not as a range object) so single-day edits stay
+/// simple, but entries created together as a range share the same
+/// `rangeGroupId` — the UI uses this to collapse consecutive
+/// same-status days into one visual block (e.g. "June 20-25") instead
+/// of showing every day as a separate item.
+class AvailabilityEntry {
+  final String id;
+  final String memberId;
+  final DateTime date;
+  final DayAvailabilityStatus status;
+  final String? rangeGroupId; // null if set as a single day
+  final String? reason;       // optional note, mainly used for onLeave
+
+  const AvailabilityEntry({
+    required this.id,
+    required this.memberId,
+    required this.date,
+    required this.status,
+    this.rangeGroupId,
+    this.reason,
+  });
+
+  /// True if `date` falls on the same calendar day as this entry's date.
+  bool isOnDate(DateTime other) {
+    return date.year == other.year &&
+        date.month == other.month &&
+        date.day == other.day;
+  }
+}
+
+/// A collapsed, displayable range — one or more consecutive
+/// AvailabilityEntry rows with the same status and rangeGroupId,
+/// merged for display purposes. Built by AvailabilityRangeHelper,
+/// not stored directly.
+class AvailabilityRange {
+  final DateTime startDate;
+  final DateTime endDate; // inclusive
+  final DayAvailabilityStatus status;
+  final String? reason;
+
+  const AvailabilityRange({
+    required this.startDate,
+    required this.endDate,
+    required this.status,
+    this.reason,
+  });
+
+  bool get isSingleDay =>
+      startDate.year == endDate.year &&
+      startDate.month == endDate.month &&
+      startDate.day == endDate.day;
+
+  int get dayCount => endDate.difference(startDate).inDays + 1;
+}
+
+/// Groups a flat list of per-day AvailabilityEntry rows into
+/// displayable AvailabilityRange blocks — consecutive days with the
+/// same status (and same rangeGroupId, when set) collapse into one
+/// range; everything else (including null rangeGroupId entries that
+/// happen to be adjacent) is grouped purely by consecutive date +
+/// matching status, so manual single-day edits that happen to line up
+/// still display sensibly as a range too.
+class AvailabilityRangeHelper {
+  AvailabilityRangeHelper._();
+
+  static List<AvailabilityRange> collapse(List<AvailabilityEntry> entries) {
+    if (entries.isEmpty) return [];
+
+    final sorted = [...entries]..sort((a, b) => a.date.compareTo(b.date));
+    final ranges = <AvailabilityRange>[];
+
+    DateTime rangeStart = sorted.first.date;
+    DateTime rangeEnd = sorted.first.date;
+    DayAvailabilityStatus rangeStatus = sorted.first.status;
+    String? rangeReason = sorted.first.reason;
+
+    for (var i = 1; i < sorted.length; i++) {
+      final entry = sorted[i];
+      final isConsecutiveDay =
+          entry.date.difference(rangeEnd).inDays == 1;
+      final sameStatus = entry.status == rangeStatus;
+      final sameReason = entry.reason == rangeReason;
+
+      if (isConsecutiveDay && sameStatus && sameReason) {
+        rangeEnd = entry.date;
+      } else {
+        ranges.add(AvailabilityRange(
+          startDate: rangeStart,
+          endDate: rangeEnd,
+          status: rangeStatus,
+          reason: rangeReason,
+        ));
+        rangeStart = entry.date;
+        rangeEnd = entry.date;
+        rangeStatus = entry.status;
+        rangeReason = entry.reason;
+      }
+    }
+
+    ranges.add(AvailabilityRange(
+      startDate: rangeStart,
+      endDate: rangeEnd,
+      status: rangeStatus,
+      reason: rangeReason,
+    ));
+
+    return ranges;
+  }
+}
