@@ -1,5 +1,6 @@
 import '../models/models.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/permission_service.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // MOCK MEMBER DATA
@@ -1609,11 +1610,212 @@ class MockSkills {
 // (Matches Module 3 placeholder convention)
 // ═══════════════════════════════════════════════════════════════
 class MockDuties {
-  static final List<Duty> all = [];
+  // In-memory store — resets on app restart, replaced by Supabase in
+  // Module 16. Seeded with a mix of upcoming, ongoing, and completed
+  // duties using real Company 1/3 members so the Duties module has
+  // something meaningful to display and test against.
+  static final List<Duty> all = _seedDuties();
 
-  static Duty? findById(String id) => null;
+  static List<Duty> _seedDuties() {
+    final now = DateTime.now();
+    DateTime d(int dayOffset) =>
+        DateTime(now.year, now.month, now.day + dayOffset);
 
-  static List<DutyMember> getMemberDuties(String memberId) => [];
+    DutyMember accepted(String memberId, DutyRoleInDuty role) => DutyMember(
+          memberId: memberId,
+          roleInDuty: role,
+          status: DutyAssignmentStatus.accepted,
+          assignedAt: d(-3),
+          respondedAt: d(-2),
+        );
+
+    DutyMember pending(String memberId, DutyRoleInDuty role) => DutyMember(
+          memberId: memberId,
+          roleInDuty: role,
+          status: DutyAssignmentStatus.pending,
+          assignedAt: d(-1),
+        );
+
+    DutyMember completedAssignment(String memberId, DutyRoleInDuty role) =>
+        DutyMember(
+          memberId: memberId,
+          roleInDuty: role,
+          status: DutyAssignmentStatus.completed,
+          assignedAt: d(-10),
+          respondedAt: d(-9),
+        );
+
+    return [
+      // Upcoming regular duty — Company 1, Platoon 1
+      Duty(
+        id: 'duty1',
+        title: 'Township Health Fair — First Aid Support',
+        titleMm: 'မြို့နယ်ကျန်းမာရေးပွဲ — ရှေးဦးပြုစုထောက်ပံ့မှု',
+        type: DutyType.firstAid,
+        scale: DutyScale.regular,
+        date: d(3),
+        startHour: 8, startMinute: 0,
+        endHour: 16, endMinute: 0,
+        location: 'Botahtaung Township Hall',
+        members: [
+          accepted('m103', DutyRoleInDuty.officer),
+          accepted('m107', DutyRoleInDuty.member),
+          pending('m105', DutyRoleInDuty.member),
+        ],
+        status: DutyStatus.upcoming,
+        description: 'Standard first aid coverage for the township health fair.',
+      ),
+
+      // Upcoming emergency duty — Company 3
+      Duty(
+        id: 'duty2',
+        title: 'Flood Response Standby',
+        titleMm: 'ရေကြီးရေလျှံ အရေးပေါ်အသင့်ရှိမှု',
+        type: DutyType.disaster,
+        scale: DutyScale.regular,
+        date: d(1),
+        startHour: 6, startMinute: 0,
+        endHour: 18, endMinute: 0,
+        location: 'Pazundaung Creek Area',
+        members: [
+          accepted('m304', DutyRoleInDuty.officer),
+          accepted('m306', DutyRoleInDuty.member),
+          accepted('m308', DutyRoleInDuty.member),
+        ],
+        status: DutyStatus.upcoming,
+        description: 'Monitoring water levels, on standby for evacuation support.',
+      ),
+
+      // Ongoing duty — today
+      Duty(
+        id: 'duty3',
+        title: 'Blood Donation Drive',
+        titleMm: 'သွေးလှူဒါန်းမှုအခမ်းအနား',
+        type: DutyType.bloodDonation,
+        scale: DutyScale.regular,
+        date: d(0),
+        startHour: 9, startMinute: 0,
+        endHour: 15, endMinute: 0,
+        location: 'Brigade Office Compound',
+        members: [
+          accepted('m101', DutyRoleInDuty.commander),
+          accepted('m102', DutyRoleInDuty.officer),
+          accepted('m106', DutyRoleInDuty.member),
+          accepted('m118', DutyRoleInDuty.member),
+        ],
+        status: DutyStatus.ongoing,
+        description: 'Quarterly blood donation drive in partnership with the regional blood bank.',
+      ),
+
+      // Completed duty — last week
+      Duty(
+        id: 'duty4',
+        title: 'School Safety Patrol',
+        titleMm: 'ကျောင်းဘေးကင်းရေးကင်းလှည့်ခြင်း',
+        type: DutyType.patrol,
+        scale: DutyScale.regular,
+        date: d(-7),
+        startHour: 7, startMinute: 0,
+        endHour: 9, endMinute: 0,
+        location: 'No. 1 Basic Education School',
+        members: [
+          completedAssignment('m120', DutyRoleInDuty.officer),
+          completedAssignment('m113', DutyRoleInDuty.member),
+        ],
+        status: DutyStatus.completed,
+        description: 'Morning school crossing patrol — completed without incident.',
+      ),
+
+      // Completed emergency duty — large scale, last month
+      Duty(
+        id: 'duty5',
+        title: 'New Year Festival Crowd Safety',
+        titleMm: 'နှစ်ဆက်ပွဲတော် လူစုလူပေါင်းဘေးကင်းရေး',
+        type: DutyType.eventMedical,
+        scale: DutyScale.largeScale,
+        date: d(-30),
+        startHour: 18, startMinute: 0,
+        endHour: 23, endMinute: 30,
+        location: 'Botahtaung Pagoda Festival Grounds',
+        members: [
+          completedAssignment('m1', DutyRoleInDuty.commander),
+          completedAssignment('m101', DutyRoleInDuty.officer),
+          completedAssignment('m302', DutyRoleInDuty.officer),
+          completedAssignment('m109', DutyRoleInDuty.member),
+          completedAssignment('m312', DutyRoleInDuty.member),
+        ],
+        status: DutyStatus.completed,
+        description: 'Large-scale festival medical and crowd safety coverage.',
+        isEvent: true,
+      ),
+
+      // Cancelled duty — example
+      Duty(
+        id: 'duty6',
+        title: 'Joint Training Exercise',
+        titleMm: 'ပူးတွဲလေ့ကျင့်ခန်း',
+        type: DutyType.training,
+        scale: DutyScale.regular,
+        date: d(-2),
+        startHour: 13, startMinute: 0,
+        endHour: 16, endMinute: 0,
+        location: 'Brigade Training Hall',
+        members: [
+          DutyMember(
+            memberId: 'm118',
+            roleInDuty: DutyRoleInDuty.officer,
+            status: DutyAssignmentStatus.rejected,
+            assignedAt: d(-5),
+            respondedAt: d(-4),
+            rejectionReason: 'Venue unavailable — rescheduling needed.',
+          ),
+        ],
+        status: DutyStatus.cancelled,
+        description: 'Cancelled due to venue conflict.',
+      ),
+    ];
+  }
+
+  static Duty? findById(String id) {
+    try {
+      return all.firstWhere((d) => d.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// All DutyMember assignment records for `memberId`, paired with
+  /// the Duty they belong to (most recent first).
+  static List<({Duty duty, DutyMember assignment})> getMemberDuties(String memberId) {
+    final results = <({Duty duty, DutyMember assignment})>[];
+    for (final duty in all) {
+      final assignment =
+          duty.members.where((dm) => dm.memberId == memberId).firstOrNull;
+      if (assignment != null) {
+        results.add((duty: duty, assignment: assignment));
+      }
+    }
+    results.sort((a, b) => b.duty.date.compareTo(a.duty.date));
+    return results;
+  }
+
+  /// Duties visible to `member` based on unit scope — reuses the same
+  /// company-scoping convention as other Module 4/5 screens. Brigade
+  /// Office sees everything; everyone else sees duties where at least
+  /// one assigned member shares their company (a reasonable proxy
+  /// for "duties relevant to my unit" until a dedicated unit field
+  /// is added to Duty in a later module).
+  static List<Duty> visibleTo(Member viewer) {
+    if (viewer.unitType == UnitType.brigadeOffice) return all;
+    if (PermissionService.hasAdminOrMasterAccess(viewer)) return all;
+
+    return all.where((duty) {
+      return duty.members.any((dm) {
+        final m = MockMembers.findById(dm.memberId);
+        return m != null && m.companyNo == viewer.companyNo;
+      });
+    }).toList();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

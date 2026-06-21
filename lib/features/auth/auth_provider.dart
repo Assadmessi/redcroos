@@ -80,6 +80,31 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canAssignDuty(_currentMember!);
 
+  // ── Module 6 additions: Duties ──
+  bool get canCreateDuty =>
+      _currentMember != null &&
+      PermissionService.canCreateDuty(_currentMember!);
+
+  bool canRespondToDutyAssignment(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canRespondToDutyAssignment(_currentMember!, duty);
+
+  bool canMarkDutyComplete(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canMarkDutyComplete(_currentMember!, duty);
+
+  bool canCancelDuty(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canCancelDuty(_currentMember!, duty);
+
+  bool canDeleteDuty(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canDeleteDuty(_currentMember!, duty);
+
+  bool canEditDuty(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canEditDuty(_currentMember!, duty);
+
   bool get canCreateDispatch =>
       _currentMember != null &&
       PermissionService.canCreateDispatch(_currentMember!);

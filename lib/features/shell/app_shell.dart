@@ -7,6 +7,7 @@ import '../../data/mock/mock_data.dart';
 import '../auth/auth_provider.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../members/members_screen.dart';
+import '../duties/duties_screen.dart';
 import '../availability/my_availability_screen.dart';
 import '../availability/unit_availability_screen.dart';
 
@@ -779,6 +780,8 @@ class _PageContent extends StatelessWidget {
         return const DashboardScreen();
       case 'members':
         return const MembersScreen();
+      case 'duties':
+        return const DutiesScreen();
       case 'my_availability':
         return const MyAvailabilityScreen();
       case 'unit_availability':

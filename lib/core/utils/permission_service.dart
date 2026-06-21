@@ -419,17 +419,66 @@ class PermissionService {
         .firstOrNull;
     if (dutyMember == null) return false;
 
-    if (duty.scale == DutyScale.largeScale) {
-      return dutyMember.roleInDuty == DutyRoleInDuty.commander ||
-          dutyMember.roleInDuty == DutyRoleInDuty.officer;
-    } else {
-      return dutyMember.roleInDuty == DutyRoleInDuty.officer;
-    }
+    // Commander and Officer both have decision authority within their
+    // own duty, regardless of scale. (Previously this only checked
+    // Officer for regular-scale duties, which meant a member assigned
+    // as Commander on a regular duty had LESS authority than an
+    // Officer on the same duty — fixed here.)
+    return dutyMember.roleInDuty == DutyRoleInDuty.commander ||
+        dutyMember.roleInDuty == DutyRoleInDuty.officer;
   }
 
   // ═══════════════════════════════════════════════════════════
-  // MODULE 4 ADDITIONS — List visibility vs Detail visibility
-  //
+  // MODULE 6 ADDITIONS — Duties Module
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` create a duty? Master Access only — structural
+  /// actions on duties (create/edit/cancel/delete) are restricted to
+  /// Master Access, unlike duty-role authority which only governs
+  /// in-duty decisions like marking complete (see canMarkDutyComplete).
+  static bool canCreateDuty(Member member) => hasAdminOrMasterAccess(member);
+
+  /// Can `member` accept/reject their own assignment on `duty`?
+  /// Only the assigned member themselves, and only while the
+  /// assignment is still pending a response.
+  static bool canRespondToDutyAssignment(Member member, Duty duty) {
+    final dutyMember =
+        duty.members.where((dm) => dm.memberId == member.id).firstOrNull;
+    if (dutyMember == null) return false;
+    return dutyMember.status == DutyAssignmentStatus.pending;
+  }
+
+  /// Can `member` mark `duty` as complete? This is the ONE duty
+  /// action that stays available to duty-role authority — either
+  /// Master Access, or whoever holds commander/officer role within
+  /// THIS specific duty's roster (see canMakeDecisionInDuty). A
+  /// general assignment-authority member with no role in this duty
+  /// cannot mark it complete — only Master Access or this duty's own
+  /// commander/officer can.
+  static bool canMarkDutyComplete(Member member, Duty duty) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return canMakeDecisionInDuty(member, duty);
+  }
+
+  /// Can `member` cancel `duty`? Master Access only.
+  static bool canCancelDuty(Member member, Duty duty) =>
+      hasAdminOrMasterAccess(member);
+
+  /// Can `member` delete `duty` entirely (distinct from cancel, which
+  /// keeps a cancelled record)? Master Access only.
+  static bool canDeleteDuty(Member member, Duty duty) =>
+      hasAdminOrMasterAccess(member);
+
+  /// Can `member` edit `duty`'s details (time/location/description,
+  /// not the roster)? Master Access only.
+  static bool canEditDuty(Member member, Duty duty) {
+    if (duty.status == DutyStatus.completed ||
+        duty.status == DutyStatus.cancelled) {
+      return false;
+    }
+    return hasAdminOrMasterAccess(member);
+  }
+
   // Two separate questions, deliberately kept apart:
   //   1. canSeeInMemberList — does this member show up at all when
   //      `viewer` searches/browses the Members list? (Brigade-wide
