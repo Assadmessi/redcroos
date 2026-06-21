@@ -576,10 +576,51 @@ class PermissionService {
     return actor.companyNo == target.companyNo;
   }
 
-  /// Active/Inactive status — ONLY Master Access or Admin role.
-  /// Nobody (including self) can change their own active/inactive.
+  /// Active/Inactive status — direct change, no approval. ONLY Master
+  /// Access or Admin role. Nobody (including self) can change their
+  /// own active/inactive this way. This is the path for disciplinary
+  /// suspension/dismissal (see Module 16) — for long leave/overseas,
+  /// use canRequestInactiveLeaveToggle below instead.
   static bool canChangeActiveStatus(Member actor, Member target) {
     return hasAdminOrMasterAccess(actor);
+  }
+
+  /// Long leave / overseas Active ↔ Inactive toggle — SAME approval
+  /// pattern as Available/Not Available:
+  ///   - Master Access/Admin: direct, no approval.
+  ///   - Self: can request own long-leave status, needs approval from
+  ///     own higher rank.
+  ///   - Higher rank (same unit scope): can request on someone else's
+  ///     behalf, needs approval from THEIR own higher rank.
+  /// This is distinct from canChangeActiveStatus, which is the
+  /// disciplinary/direct-only path.
+  static bool canRequestInactiveLeaveToggle(Member actor, Member target) {
+    if (hasAdminOrMasterAccess(actor)) return true; // direct, not request
+
+    // Self-request: any member can request their own long-leave status
+    if (actor.id == target.id) return true;
+
+    // Higher rank requesting for someone below them, same unit scope
+    final actorIsHigher = RankHelper.isHigherThan(actor.rank, target.rank);
+    if (!actorIsHigher) return false;
+
+    if (actor.unitType == UnitType.brigadeOffice) return true;
+    return actor.companyNo == target.companyNo;
+  }
+
+  /// Is `member` eligible to be assigned to a duty, meeting, or class?
+  /// Used by assignment pickers in later modules (Duties, Meetings,
+  /// Classes) to filter out members who are inactive for long leave.
+  /// NOT the same as `isAvailable` (short-term, day-to-day scheduling)
+  /// — this specifically excludes the long-leave/overseas case.
+  static bool isEligibleForAssignment(Member member) {
+    if (member.status == MemberStatus.inactive &&
+        member.inactiveReason != null) {
+      return false;
+    }
+    if (member.status == MemberStatus.suspended) return false;
+    if (member.status == MemberStatus.dismissed) return false;
+    return true;
   }
 
   /// Rank/role changes — ONLY Master Access or Admin role.

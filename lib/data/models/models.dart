@@ -83,6 +83,14 @@ class Member {
   // ── Module 4 additions: Availability (separate from status) ──
   final bool isAvailable;             // scheduling flag, not membership status
 
+  // ── Module 4 additions: Inactive (long leave/overseas) detail ──
+  // Only meaningful when status == MemberStatus.inactive for this reason
+  // (as opposed to suspended/dismissed, which are disciplinary and
+  // handled separately). Captures why and for how long, so the brigade
+  // knows when to expect the member back.
+  final String? inactiveReason;       // e.g. "Overseas - work assignment"
+  final DateTime? inactiveReturnDate; // expected return date
+
   // ── Module 4 additions: Admin role ──
   final bool isAdminRole;             // same power as Master Access for
                                        // availability/active-inactive/rank,
@@ -144,6 +152,8 @@ class Member {
     this.probationStartDate,
     this.annualFeesPaidYears = const [],
     this.isAvailable = true,
+    this.inactiveReason,
+    this.inactiveReturnDate,
     this.isAdminRole = false,
   });
 
@@ -245,6 +255,89 @@ class Member {
     return missedCount >= 3;
   }
 
+  /// Mark this member inactive for long leave/overseas, with reason and
+  /// expected return date. Use this instead of copyWith for this
+  /// transition since copyWith's `??` pattern can't be used to set a
+  /// genuinely new value cleanly alongside status in one call.
+  Member markInactiveForLeave({
+    required String reason,
+    required DateTime returnDate,
+  }) {
+    return copyWith(status: MemberStatus.inactive).copyWithInactiveDetail(
+      reason: reason,
+      returnDate: returnDate,
+    );
+  }
+
+  /// Internal helper — sets inactiveReason/inactiveReturnDate directly
+  /// (copyWith's `??` can't be used here since we need to actually set
+  /// these, not skip when already null).
+  Member copyWithInactiveDetail({
+    required String reason,
+    required DateTime returnDate,
+  }) {
+    return Member(
+      id: id, memberNo: memberNo, nameEn: nameEn, nameMm: nameMm, rank: rank,
+      unitType: unitType, companyNo: companyNo, platoonNo: platoonNo,
+      sectionNo: sectionNo, status: status, bloodType: bloodType,
+      joinDate: joinDate, photoUrl: photoUrl, phone: phone, email: email,
+      address: address, dateOfBirth: dateOfBirth,
+      emergencyContact: emergencyContact, emergencyPhone: emergencyPhone,
+      skillIds: skillIds, isChairperson: isChairperson,
+      isBrigadeOfficeChief: isBrigadeOfficeChief,
+      hasBrigadeOfficeAuthority: hasBrigadeOfficeAuthority,
+      assignedPlatoons: assignedPlatoons, youthGroup: youthGroup,
+      youthGroupRole: youthGroupRole, role: role, gender: gender,
+      fatherName: fatherName, fatherOccupation: fatherOccupation,
+      motherName: motherName, motherOccupation: motherOccupation, nrc: nrc,
+      ygnId: ygnId, currentRankDate: currentRankDate, height: height,
+      eyeColor: eyeColor, hairColor: hairColor,
+      distinguishingMarks: distinguishingMarks, ethnicity: ethnicity,
+      religion: religion, education: education, occupation: occupation,
+      occupationDepartment: occupationDepartment,
+      completedTrainings: completedTrainings, honorsAwards: honorsAwards,
+      membershipNo: membershipNo, lifetimeMemberNo: lifetimeMemberNo,
+      lifetimeMemberDate: lifetimeMemberDate, serviceBookNo: serviceBookNo,
+      membershipType: membershipType, probationStartDate: probationStartDate,
+      annualFeesPaidYears: annualFeesPaidYears, isAvailable: isAvailable,
+      inactiveReason: reason,
+      inactiveReturnDate: returnDate,
+      isAdminRole: isAdminRole,
+    );
+  }
+
+  /// Returns this member to active status and clears the leave detail.
+  Member markActiveAgain() {
+    return Member(
+      id: id, memberNo: memberNo, nameEn: nameEn, nameMm: nameMm, rank: rank,
+      unitType: unitType, companyNo: companyNo, platoonNo: platoonNo,
+      sectionNo: sectionNo, status: MemberStatus.active, bloodType: bloodType,
+      joinDate: joinDate, photoUrl: photoUrl, phone: phone, email: email,
+      address: address, dateOfBirth: dateOfBirth,
+      emergencyContact: emergencyContact, emergencyPhone: emergencyPhone,
+      skillIds: skillIds, isChairperson: isChairperson,
+      isBrigadeOfficeChief: isBrigadeOfficeChief,
+      hasBrigadeOfficeAuthority: hasBrigadeOfficeAuthority,
+      assignedPlatoons: assignedPlatoons, youthGroup: youthGroup,
+      youthGroupRole: youthGroupRole, role: role, gender: gender,
+      fatherName: fatherName, fatherOccupation: fatherOccupation,
+      motherName: motherName, motherOccupation: motherOccupation, nrc: nrc,
+      ygnId: ygnId, currentRankDate: currentRankDate, height: height,
+      eyeColor: eyeColor, hairColor: hairColor,
+      distinguishingMarks: distinguishingMarks, ethnicity: ethnicity,
+      religion: religion, education: education, occupation: occupation,
+      occupationDepartment: occupationDepartment,
+      completedTrainings: completedTrainings, honorsAwards: honorsAwards,
+      membershipNo: membershipNo, lifetimeMemberNo: lifetimeMemberNo,
+      lifetimeMemberDate: lifetimeMemberDate, serviceBookNo: serviceBookNo,
+      membershipType: membershipType, probationStartDate: probationStartDate,
+      annualFeesPaidYears: annualFeesPaidYears, isAvailable: isAvailable,
+      inactiveReason: null,
+      inactiveReturnDate: null,
+      isAdminRole: isAdminRole,
+    );
+  }
+
   Member copyWith({
     bool? isBrigadeOfficeChief,
     bool? hasBrigadeOfficeAuthority,
@@ -258,6 +351,8 @@ class Member {
     MemberStatus? status,
     // Module 4 additions
     bool? isAvailable,
+    String? inactiveReason,
+    DateTime? inactiveReturnDate,
     bool? isAdminRole,
     MembershipType? membershipType,
     String? membershipNo,
@@ -320,6 +415,8 @@ class Member {
       probationStartDate: probationStartDate,
       annualFeesPaidYears: annualFeesPaidYears,
       isAvailable: isAvailable ?? this.isAvailable,
+      inactiveReason: inactiveReason ?? this.inactiveReason,
+      inactiveReturnDate: inactiveReturnDate ?? this.inactiveReturnDate,
       isAdminRole: isAdminRole ?? this.isAdminRole,
     );
   }

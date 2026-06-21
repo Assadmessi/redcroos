@@ -121,6 +121,30 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canApproveNewMemberProposal(_currentMember!, proposer);
 
+  // ── Module 4 additions: Available/Not Available toggle ──
+  // NOTE: previously the availability toggle UI checked hasMasterAccess
+  // directly, which does NOT account for Admin role — these proper
+  // shortcuts fix that gap.
+  bool canToggleAvailabilityDirectly(Member target) =>
+      _currentMember != null &&
+      PermissionService.canToggleAvailabilityDirectly(_currentMember!, target);
+
+  bool canRequestAvailabilityToggle(Member target) =>
+      _currentMember != null &&
+      PermissionService.canRequestAvailabilityToggle(_currentMember!, target);
+
+  // ── Module 4 additions: Active/Inactive (long leave/overseas) ──
+  // Same request/approval pattern as availability above, but for the
+  // long-term Active ↔ Inactive status (going overseas, extended
+  // leave) — distinct from the disciplinary suspension/dismissal path.
+  bool canSetInactiveLeaveDirectly(Member target) =>
+      _currentMember != null &&
+      PermissionService.hasAdminOrMasterAccess(_currentMember!);
+
+  bool canRequestInactiveLeaveToggle(Member target) =>
+      _currentMember != null &&
+      PermissionService.canRequestInactiveLeaveToggle(_currentMember!, target);
+
   // ── Module 4 additions: detail/fullscreen restriction ──
   // canViewFullDetail gates Info tab, Analytics tab, AND ID Card tab
   // visibility all from one rule — see PermissionService.canViewFullDetail.

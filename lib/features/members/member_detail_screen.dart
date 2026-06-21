@@ -27,7 +27,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   }
 
   void _toggleAvailability(AuthProvider auth) {
-    final canDirect = auth.hasMasterAccess; // covers Admin via getter chain
+    final canDirect = auth.canToggleAvailabilityDirectly(_member);
     if (canDirect) {
       setState(() => _member = _member.copyWith(isAvailable: !_member.isAvailable));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,6 +59,169 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Active/Inactive toggle for long leave/overseas (NOT disciplinary
+  /// suspension/dismissal — that's a separate Master-Access-only path
+  /// held for Module 16). Same request/approval pattern as
+  /// _toggleAvailability: Master Access/Admin act directly; everyone
+  /// else's change goes to their higher rank for approval.
+  void _toggleActiveLeave(AuthProvider auth) {
+    final isCurrentlyInactiveLeave =
+        _member.status == MemberStatus.inactive && _member.inactiveReason != null;
+    final canDirect = auth.canSetInactiveLeaveDirectly(_member);
+
+    if (isCurrentlyInactiveLeave) {
+      // Returning to active — confirm, then apply directly or request.
+      if (canDirect) {
+        setState(() => _member = _member.markActiveAgain());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marked Active')),
+        );
+      } else {
+        _showInactiveLeaveRequestDialog(auth, goingInactive: false);
+      }
+      return;
+    }
+
+    if (canDirect) {
+      _showInactiveLeaveDetailForm(auth, applyDirectly: true);
+    } else {
+      _showInactiveLeaveRequestDialog(auth, goingInactive: true);
+    }
+  }
+
+  void _showInactiveLeaveRequestDialog(AuthProvider auth, {required bool goingInactive}) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(goingInactive ? 'Request Inactive (Long Leave)' : 'Request Return to Active'),
+        content: Text(
+          _member.id == auth.currentMember?.id
+              ? 'This will send a request to your higher rank for approval.'
+              : "This will send a request to your higher rank to confirm ${_member.nameEn}'s status change.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (goingInactive) {
+                _showInactiveLeaveDetailForm(auth, applyDirectly: false);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Request sent for approval')),
+                );
+              }
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showInactiveLeaveDetailForm(AuthProvider auth, {required bool applyDirectly}) async {
+    final reasonCtrl = TextEditingController();
+    DateTime? returnDate;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: 16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Mark Inactive (Long Leave)', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 4),
+                  Text(
+                    'For overseas travel or extended leave — member stays on the roster, marked clearly, and excluded from duty/meeting/class assignment until they return.',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reasonCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason',
+                      hintText: 'e.g. Overseas — work assignment',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now().add(const Duration(days: 30)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 1095)),
+                      );
+                      if (picked != null) setSheetState(() => returnDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Expected Return Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Text(returnDate == null
+                          ? 'Select date'
+                          : AppFormatters.date(returnDate!)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: reasonCtrl.text.trim().isEmpty || returnDate == null
+                              ? null
+                              : () {
+                                  final reason = reasonCtrl.text.trim();
+                                  final date = returnDate!;
+                                  Navigator.pop(sheetContext);
+                                  if (applyDirectly) {
+                                    setState(() {
+                                      _member = _member.markInactiveForLeave(
+                                        reason: reason,
+                                        returnDate: date,
+                                      );
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Marked Inactive (Long Leave)')),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Request sent for approval')),
+                                    );
+                                  }
+                                },
+                          child: Text(applyDirectly ? 'Mark Inactive' : 'Submit Request'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -106,7 +269,11 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
             : (canViewDetail
                 ? TabBarView(
                     children: [
-                      _InfoTab(member: _member, onToggleAvailability: () => _toggleAvailability(auth)),
+                      _InfoTab(
+                        member: _member,
+                        onToggleAvailability: () => _toggleAvailability(auth),
+                        onToggleActiveLeave: () => _toggleActiveLeave(auth),
+                      ),
                       _IdCardTab(
                         member: _member,
                         canFullscreen: canFullscreenCard,
@@ -190,7 +357,12 @@ class _RestrictedTab extends StatelessWidget {
 class _InfoTab extends StatelessWidget {
   final Member member;
   final VoidCallback onToggleAvailability;
-  const _InfoTab({required this.member, required this.onToggleAvailability});
+  final VoidCallback onToggleActiveLeave;
+  const _InfoTab({
+    required this.member,
+    required this.onToggleAvailability,
+    required this.onToggleActiveLeave,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -298,6 +470,51 @@ class _InfoTab extends StatelessWidget {
                 ),
               ],
             ),
+            const Divider(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    member.status == MemberStatus.inactive && member.inactiveReason != null
+                        ? '✈️ Inactive — Long Leave'
+                        : '✅ Active',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: onToggleActiveLeave,
+                  child: Text(
+                    member.status == MemberStatus.inactive && member.inactiveReason != null
+                        ? 'Mark Active'
+                        : 'Mark Inactive',
+                  ),
+                ),
+              ],
+            ),
+            if (member.status == MemberStatus.inactive && member.inactiveReason != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Reason: ${member.inactiveReason}',
+                        style: AppTextStyles.bodySmall),
+                    if (member.inactiveReturnDate != null)
+                      Text(
+                        'Expected return: ${AppFormatters.date(member.inactiveReturnDate!)}',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey700),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
