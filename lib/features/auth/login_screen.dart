@@ -367,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.info_outline_rounded,
+                                    const Icon(Icons.info_outline_rounded,
                                         size: 16, color: AppColors.info),
                                     const SizedBox(width: 8),
                                     Expanded(

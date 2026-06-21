@@ -360,12 +360,12 @@ class _CardBack extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.lock_outline, size: 11, color: Colors.black45),
-                    const SizedBox(width: 4),
-                    const Text('Contact info only',
+                    Icon(Icons.lock_outline, size: 11, color: Colors.black45),
+                    SizedBox(width: 4),
+                    Text('Contact info only',
                         style: TextStyle(fontSize: 8, color: Colors.black45)),
                   ],
                 ),

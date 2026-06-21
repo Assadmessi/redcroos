@@ -203,7 +203,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                    const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

@@ -10,7 +10,7 @@ import 'my_availability_screen.dart';
 
 enum _ViewMode { list, grid, summary }
 enum _TrendRange { today, week, month }
-enum _SummaryPeriod { day, week, month, year }
+enum _SummaryPeriod { day, week, month, year, custom }
 
 class UnitAvailabilityScreen extends StatefulWidget {
   const UnitAvailabilityScreen({super.key});
@@ -23,7 +23,9 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
   _ViewMode _viewMode = _ViewMode.list;
   _TrendRange _trendRange = _TrendRange.week;
   _SummaryPeriod _summaryPeriod = _SummaryPeriod.day;
-  DateTime _summaryAnchorDate = DateTime.now(); // anchor for the selected period
+  DateTime _summaryAnchorDate = DateTime.now(); // anchor for day/week/month/year
+  DateTime _customRangeStart = DateTime.now().subtract(const Duration(days: 6));
+  DateTime _customRangeEnd = DateTime.now();
   DateTime _selectedDate = DateTime.now();
   DateTime _weekStart = _startOfWeek(DateTime.now());
 
@@ -439,6 +441,11 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
         return (start: start, end: end);
       case _SummaryPeriod.year:
         return (start: DateTime(a.year, 1, 1), end: DateTime(a.year, 12, 31));
+      case _SummaryPeriod.custom:
+        return (
+          start: DateTime(_customRangeStart.year, _customRangeStart.month, _customRangeStart.day),
+          end: DateTime(_customRangeEnd.year, _customRangeEnd.month, _customRangeEnd.day),
+        );
     }
   }
 
@@ -470,8 +477,29 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
           );
         case _SummaryPeriod.year:
           _summaryAnchorDate = DateTime(_summaryAnchorDate.year + direction, 1, 1);
+        case _SummaryPeriod.custom:
+          // Custom range has no fixed unit to shift by — navigation
+          // arrows are replaced with a date-range picker button
+          // instead, see _buildPeriodSelector.
+          break;
       }
     });
+  }
+
+  Future<void> _pickCustomRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(DateTime.now().year - 5),
+      lastDate: DateTime(DateTime.now().year + 1),
+      initialDateRange: DateTimeRange(start: _customRangeStart, end: _customRangeEnd),
+      helpText: 'Select custom range',
+    );
+    if (picked != null) {
+      setState(() {
+        _customRangeStart = picked.start;
+        _customRangeEnd = picked.end;
+      });
+    }
   }
 
   Widget _buildPeriodSelector(({DateTime start, DateTime end}) range) {
@@ -505,38 +533,71 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
             border: Border.all(color: AppColors.grey50.withValues(alpha: 0.3)),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              seg(_SummaryPeriod.day, 'Day'),
-              seg(_SummaryPeriod.week, 'Week'),
-              seg(_SummaryPeriod.month, 'Month'),
-              seg(_SummaryPeriod.year, 'Year'),
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                seg(_SummaryPeriod.day, 'Day'),
+                seg(_SummaryPeriod.week, 'Week'),
+                seg(_SummaryPeriod.month, 'Month'),
+                seg(_SummaryPeriod.year, 'Year'),
+                seg(_SummaryPeriod.custom, 'Custom'),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () => _shiftSummaryAnchor(-1),
-              visualDensity: VisualDensity.compact,
-            ),
-            Expanded(
-              child: Text(
-                _periodRangeLabel(range),
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+        if (_summaryPeriod == _SummaryPeriod.custom)
+          InkWell(
+            onTap: _pickCustomRange,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.grey50.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.date_range, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _periodRangeLabel(range),
+                      style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Text(
+                    'Change',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary),
+                  ),
+                ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => _shiftSummaryAnchor(1),
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
+          )
+        else
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () => _shiftSummaryAnchor(-1),
+                visualDensity: VisualDensity.compact,
+              ),
+              Expanded(
+                child: Text(
+                  _periodRangeLabel(range),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => _shiftSummaryAnchor(1),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
       ],
     );
   }
