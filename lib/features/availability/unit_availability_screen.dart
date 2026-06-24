@@ -560,7 +560,7 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.date_range, size: 18, color: AppColors.primary),
+                  const Icon(Icons.date_range, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -871,7 +871,7 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
       return (available, notAvailable, onLeave);
     }).toList();
 
-    final maxCount = members.length == 0 ? 1 : members.length;
+    final maxCount = members.isEmpty ? 1 : members.length;
     final isCompact = days.length > 10;
 
     return Column(

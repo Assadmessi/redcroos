@@ -306,7 +306,7 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
               if (_scale == DutyScale.largeScale)
                 Row(
                   children: [
-                    Icon(Icons.map_outlined, size: 18, color: AppColors.grey500),
+                    const Icon(Icons.map_outlined, size: 18, color: AppColors.grey500),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

@@ -275,12 +275,148 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
 // RESTRICTED PLACEHOLDER — shown instead of Info/Analytics when
 // viewing a higher-ranking member without Master Access/Admin
 // ─────────────────────────────────────────────────────────────────
-class _RestrictedTab extends StatelessWidget {
+class _RestrictedTab extends StatefulWidget {
   final Member member;
   const _RestrictedTab({required this.member});
 
   @override
+  State<_RestrictedTab> createState() => _RestrictedTabState();
+}
+
+class _RestrictedTabState extends State<_RestrictedTab> {
+  final Set<ProfileSection> _selectedSections = {};
+  final _reasonCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submitRequest(AuthProvider auth) {
+    if (_selectedSections.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one section to request')),
+      );
+      return;
+    }
+    if (_reasonCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please provide a reason for this request')),
+      );
+      return;
+    }
+
+    final requester = auth.currentMember!;
+    MockAccessGrants.add(AccessGrantRequest(
+      id: 'grant_${DateTime.now().microsecondsSinceEpoch}',
+      requesterId: requester.id,
+      targetMemberId: widget.member.id,
+      requestedSections: _selectedSections.toList(),
+      reason: _reasonCtrl.text.trim(),
+      status: AccessGrantStatus.pending,
+      requestedAt: DateTime.now(),
+    ));
+
+    setState(() {
+      _selectedSections.clear();
+      _reasonCtrl.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Request sent to Company Commander/Deputy for approval')),
+    );
+  }
+
+  void _openRequestSheet(AuthProvider auth) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: 16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Request Access', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select which sections of ${widget.member.nameEn}\'s profile you need, '
+                    'and why. This goes to your Company Commander/Deputy for approval.',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                  ),
+                  const SizedBox(height: 16),
+                  ...ProfileSection.values.map((section) {
+                    final isSelected = _selectedSections.contains(section);
+                    return CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: isSelected,
+                      onChanged: (v) => setSheetState(() {
+                        if (v == true) {
+                          _selectedSections.add(section);
+                        } else {
+                          _selectedSections.remove(section);
+                        }
+                      }),
+                      title: Text(section.label, style: AppTextStyles.bodyMedium),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _reasonCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            _submitRequest(auth);
+                          },
+                          child: const Text('Submit Request'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final me = auth.currentMember;
+    final canRequest = me != null && auth.canRequestAccessGrant(widget.member);
+    final activeGrants = me != null
+        ? MockAccessGrants.activeFor(me.id, widget.member.id)
+        : <AccessGrantRequest>[];
+    final grantedSections = activeGrants.expand((g) => g.requestedSections).toSet();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -303,11 +439,35 @@ class _RestrictedTab extends StatelessWidget {
                   ],
                 ),
                 const Divider(height: 20),
-                _row('Name', member.nameEn),
-                _row('Rank', member.rankNameEn),
-                _row('Phone', member.phone.isEmpty ? '—' : member.phone),
-                _row('Email', member.email.isEmpty ? '—' : member.email),
-                _row('Unit / Company', member.unitDisplay),
+                _row('Name', widget.member.nameEn),
+                _row('Rank', widget.member.rankNameEn),
+                _row('Phone', widget.member.phone.isEmpty ? '—' : widget.member.phone),
+                _row('Email', widget.member.email.isEmpty ? '—' : widget.member.email),
+                _row('Unit / Company', widget.member.unitDisplay),
+                if (grantedSections.isNotEmpty) ...[
+                  const Divider(height: 20),
+                  Text('Granted Access', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: grantedSections
+                        .map((s) => Chip(
+                              label: Text(s.label, style: const TextStyle(fontSize: 11)),
+                              backgroundColor: Colors.green.withValues(alpha: 0.1),
+                              avatar: const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                            ))
+                        .toList(),
+                  ),
+                ],
+                if (canRequest) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => _openRequestSheet(auth),
+                    icon: const Icon(Icons.lock_open_outlined, size: 18),
+                    label: const Text('Request Access'),
+                  ),
+                ],
               ],
             ),
           ),

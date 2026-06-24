@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import '../../../data/models/models.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
 
 class MemberIdCard extends StatefulWidget {

@@ -788,6 +788,28 @@ class Meeting {
   final List<MeetingTask> tasks;
   final DateTime? createdAt;
 
+  // ── Module 8 additions: official Meeting Minutes structure ──
+  // Meeting number resets to 1 each January, counted separately per
+  // MeetingType (e.g. "Officer Meeting No. 3/2026"), per the locked
+  // numbering rule from the document format spec.
+  final int? meetingNumber;
+  final int? meetingYear;
+
+  // Three-way attendance instead of just attended/not — distinguishes
+  // an excused absence from an unexplained one.
+  final List<String> excusedMemberIds;
+  final List<String> absentMemberIds;
+
+  // Structured agenda — topic/presenter/discussion/decision per item,
+  // instead of a single free-text `agenda` string (kept above for
+  // backward compatibility with anything already using it).
+  final List<AgendaItem> agendaItems;
+
+  // Signature block roles
+  final String? organizerMemberId;   // who called/ran the meeting
+  final String? recorderMemberId;    // who took minutes (often Sergeant Clerk)
+  final String? approvedByMemberId;  // Brigade Office Chief/Deputy/Commander sign-off
+
   const Meeting({
     required this.id,
     required this.title,
@@ -805,6 +827,14 @@ class Meeting {
     required this.status,
     required this.tasks,
     this.createdAt,
+    this.meetingNumber,
+    this.meetingYear,
+    this.excusedMemberIds = const [],
+    this.absentMemberIds = const [],
+    this.agendaItems = const [],
+    this.organizerMemberId,
+    this.recorderMemberId,
+    this.approvedByMemberId,
   });
 
   String get timeDisplay =>
@@ -821,6 +851,45 @@ class Meeting {
       case MeetingType.custom: return 'Custom';
     }
   }
+
+  /// Display string for the official meeting number, e.g. "3/2026".
+  /// Null if not yet assigned (e.g. a meeting still being drafted
+  /// before a number is allocated).
+  String? get meetingNumberDisplay =>
+      (meetingNumber != null && meetingYear != null)
+          ? '$meetingNumber/$meetingYear'
+          : null;
+
+  /// Pending tasks carried forward from a previous meeting that
+  /// haven't been completed yet — used when auto-pulling forward
+  /// into a new meeting's agenda.
+  List<MeetingTask> get pendingTasks =>
+      tasks.where((t) => !t.isCompleted).toList();
+}
+
+// ─────────────────────────────────────────────
+// AGENDA ITEM MODEL
+// ─────────────────────────────────────────────
+class AgendaItem {
+  final String id;
+  final String meetingId;
+  final int order;
+  final String topic;
+  final String? presenterMemberId;
+  final String? discussion;
+  final String? decision;
+
+  const AgendaItem({
+    required this.id,
+    required this.meetingId,
+    required this.order,
+    required this.topic,
+    this.presenterMemberId,
+    this.discussion,
+    this.decision,
+  });
+
+  bool get hasDecision => decision != null && decision!.trim().isNotEmpty;
 }
 
 // ─────────────────────────────────────────────
@@ -1544,4 +1613,144 @@ class EventRoute {
   });
 
   bool get hasEnoughPointsToDraw => waypoints.length >= 2;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION-LEVEL ACCESS GRANT SYSTEM
+//
+// Lets a Company Sergeant Major (or anyone else this is extended to
+// later) request time-limited, section-specific access to a
+// profile they can't normally see in detail — e.g. their own
+// Company Commander/Deputy, or a Platoon Leader in their company.
+// Routed to Company Commander/Deputy for approval. The grantor
+// picks which sections to unlock and an expiry date when approving.
+// ═══════════════════════════════════════════════════════════════
+
+enum ProfileSection { personalDetails, contactInfo, membershipHistory, analytics }
+
+extension ProfileSectionDisplay on ProfileSection {
+  String get label {
+    switch (this) {
+      case ProfileSection.personalDetails: return 'Personal Details';
+      case ProfileSection.contactInfo: return 'Contact Info';
+      case ProfileSection.membershipHistory: return 'Membership / Service History';
+      case ProfileSection.analytics: return 'Analytics';
+    }
+  }
+}
+
+enum AccessGrantStatus { pending, approved, denied, expired, revoked }
+
+class AccessGrantRequest {
+  final String id;
+  final String requesterId;       // who is asking (e.g. Sergeant Major)
+  final String targetMemberId;    // whose profile they want to see
+  final List<ProfileSection> requestedSections;
+  final String reason;
+  final AccessGrantStatus status;
+  final String? approverId;       // who approved/denied (Commander/Deputy)
+  final DateTime requestedAt;
+  final DateTime? decidedAt;
+  final DateTime? expiresAt;      // set by the approver, only meaningful if approved
+  final String? denialReason;
+
+  const AccessGrantRequest({
+    required this.id,
+    required this.requesterId,
+    required this.targetMemberId,
+    required this.requestedSections,
+    required this.reason,
+    required this.status,
+    this.approverId,
+    required this.requestedAt,
+    this.decidedAt,
+    this.expiresAt,
+    this.denialReason,
+  });
+
+  /// Is this grant currently active (approved and not yet expired)?
+  bool get isActive {
+    if (status != AccessGrantStatus.approved) return false;
+    if (expiresAt == null) return true;
+    return DateTime.now().isBefore(expiresAt!);
+  }
+
+  bool get isExpired =>
+      status == AccessGrantStatus.approved &&
+      expiresAt != null &&
+      DateTime.now().isAfter(expiresAt!);
+
+  bool grantsSection(ProfileSection section) =>
+      isActive && requestedSections.contains(section);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GENERIC FEATURE ACCESS REQUEST SYSTEM
+//
+// Distinct from AccessGrantRequest above (which is specifically the
+// section-level Member-profile system routed to Company Commander/
+// Deputy). This is the GENERAL-PURPOSE mechanism: any office-tier
+// member (Platoon Office, Company Office, Brigade Office) who hits
+// something they don't have access to but need for their office's
+// work can request it here — picks the module/feature, gives a
+// reason, and it's routed to Master Access (Brigade Commander/
+// Deputy/Chief) for review.
+// ═══════════════════════════════════════════════════════════════
+
+enum FeatureAccessStatus { pending, approved, denied, expired, revoked }
+
+class FeatureAccessRequest {
+  final String id;
+  final String requesterId;
+  final String moduleOrFeature;   // free text or picked from a known list
+  final String reason;
+  final FeatureAccessStatus status;
+  final String? approverId;       // Master Access member who decided
+  final DateTime requestedAt;
+  final DateTime? decidedAt;
+  final DateTime? expiresAt;      // set by approver, only meaningful if approved
+  final String? denialReason;
+
+  const FeatureAccessRequest({
+    required this.id,
+    required this.requesterId,
+    required this.moduleOrFeature,
+    required this.reason,
+    required this.status,
+    this.approverId,
+    required this.requestedAt,
+    this.decidedAt,
+    this.expiresAt,
+    this.denialReason,
+  });
+
+  bool get isActive {
+    if (status != FeatureAccessStatus.approved) return false;
+    if (expiresAt == null) return true;
+    return DateTime.now().isBefore(expiresAt!);
+  }
+
+  bool get isExpired =>
+      status == FeatureAccessStatus.approved &&
+      expiresAt != null &&
+      DateTime.now().isAfter(expiresAt!);
+}
+
+/// Well-known module/feature names offered as quick picks in the
+/// request form, alongside free-text entry for anything not listed.
+class KnownFeatureAreas {
+  KnownFeatureAreas._();
+
+  static const List<String> all = [
+    'Member Profiles — Full Detail',
+    'Duties — Create/Edit/Cancel/Delete',
+    'Events — Manage Positions & Routes',
+    'Meetings — Create for Unit',
+    'Meetings — Approve Minutes',
+    'Availability — Unit Summary View',
+    'Fund Ledger',
+    'Archive',
+    'Settings',
+    'Other (describe in reason)',
+  ];
 }

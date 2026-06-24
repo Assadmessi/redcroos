@@ -8,6 +8,7 @@ import '../auth/auth_provider.dart';
 import 'widgets/member_card.dart';
 import 'member_detail_screen.dart';
 import 'member_form_screen.dart';
+import 'access_grant_approval_screen.dart';
 
 enum _CompanyFilter { all, office, c1, c2, c3, c4 }
 enum _RankFilter { all, officers, otherRanks }
@@ -203,6 +204,7 @@ class _MembersScreenState extends State<MembersScreen> {
           Column(
             children: [
               if (me != null) _buildMyProfileCard(context, auth, me),
+              if (me != null) _buildAccessGrantBanner(context, me),
               _buildSearchBar(auth),
               _buildFilterChips(auth),
               Padding(
@@ -316,7 +318,50 @@ class _MembersScreenState extends State<MembersScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.primary),
+                Icon(Icons.chevron_right, color: AppColors.primary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccessGrantBanner(BuildContext context, Member me) {
+    final isCompanyLead = me.rank == MemberRank.companyCommander ||
+        me.rank == MemberRank.deputyCompanyCommander;
+    if (!isCompanyLead) return const SizedBox.shrink();
+
+    final pendingCount = MockAccessGrants.pendingFor(me.companyNo).length;
+    if (pendingCount == 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Card(
+        color: Colors.orange.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.orange.withValues(alpha: 0.25)),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AccessGrantApprovalScreen()),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_open_outlined, color: Colors.orange),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$pendingCount access request${pendingCount == 1 ? '' : 's'} awaiting your review',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.orange),
               ],
             ),
           ),
@@ -367,7 +412,7 @@ class _MembersScreenState extends State<MembersScreen> {
         children: [
           if (showMyUnitChip) ...[
             FilterChip(
-              label: Text(_myUnitLabel(me)),
+              label: Text(_myUnitLabel(me!)),
               selected: _myUnitOnly,
               onSelected: (val) => setState(() => _myUnitOnly = val),
               selectedColor: AppColors.primary.withValues(alpha: 0.15),
@@ -458,7 +503,7 @@ class _MembersScreenState extends State<MembersScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.person_search, size: 48, color: AppColors.grey50),
+          Icon(Icons.person_search, size: 48, color: AppColors.grey50),
           const SizedBox(height: 12),
           Text(
             auth.tr('No members found', 'မည်သည့်အဖွဲ့ဝင်မှ တွေ့မရှိပါ'),

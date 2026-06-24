@@ -49,10 +49,10 @@ class MemberCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (member.isAdminRole) _Badge(label: 'ADMIN', color: AppColors.error),
+                        if (member.isAdminRole) const _Badge(label: 'ADMIN', color: AppColors.error),
                         if (member.status == MemberStatus.inactive &&
                             member.inactiveReason != null)
-                          _Badge(label: 'ON LEAVE', color: Colors.orange),
+                          const _Badge(label: 'ON LEAVE', color: Colors.orange),
                         if (!member.isAvailable && !isVacant)
                           const Padding(
                             padding: EdgeInsets.only(left: 4),

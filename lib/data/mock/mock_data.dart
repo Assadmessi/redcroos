@@ -1855,11 +1855,199 @@ class MockDuties {
 // MOCK MEETINGS — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockMeetings {
-  static final List<Meeting> all = [];
+  // In-memory store — resets on app restart, replaced by Supabase in
+  // Module 16. Seeded with a mix of meeting types/statuses using real
+  // Company 1/3 and Brigade Office members.
+  static final List<Meeting> all = _seedMeetings();
 
-  static Meeting? findById(String id) => null;
+  static List<Meeting> _seedMeetings() {
+    final now = DateTime.now();
+    DateTime d(int dayOffset) =>
+        DateTime(now.year, now.month, now.day + dayOffset);
 
-  static List<Meeting> visibleTo(Member member) => [];
+    return [
+      // Upcoming officer meeting — Brigade-wide
+      Meeting(
+        id: 'meeting1',
+        title: 'Quarterly Officer Meeting',
+        titleMm: 'သုံးလပတ် အရာရှိများအစည်းအဝေး',
+        type: MeetingType.officer,
+        date: d(5),
+        timeHour: 14, timeMinute: 0,
+        location: 'Brigade Office Conference Room',
+        invitedMemberIds: const ['m1', 'm2', 'm101', 'm102', 'm302'],
+        attendedMemberIds: const [],
+        minimumRank: MemberRank.platoonLeader,
+        status: MeetingStatus.scheduled,
+        tasks: const [],
+        createdAt: d(-3),
+        meetingNumber: 3,
+        meetingYear: now.year,
+        organizerMemberId: 'm1',
+        recorderMemberId: 'm6',
+        agendaItems: const [
+          AgendaItem(
+            id: 'agenda1_1', meetingId: 'meeting1', order: 1,
+            topic: 'Q2 Duty Roster Review',
+            presenterMemberId: 'm2',
+          ),
+          AgendaItem(
+            id: 'agenda1_2', meetingId: 'meeting1', order: 2,
+            topic: 'Upcoming Charity Marathon — Staffing',
+            presenterMemberId: 'm1',
+          ),
+        ],
+      ),
+
+      // Completed general meeting — Company 1
+      Meeting(
+        id: 'meeting2',
+        title: 'Company 1 Monthly Meeting',
+        titleMm: 'တပ်ခွဲ (၁) လစဉ်အစည်းအဝေး',
+        type: MeetingType.general,
+        date: d(-20),
+        timeHour: 10, timeMinute: 0,
+        location: 'Company 1 Office',
+        invitedMemberIds: const ['m101', 'm102', 'm103', 'm106', 'm107', 'm118', 'm119'],
+        attendedMemberIds: const ['m101', 'm102', 'm103', 'm106', 'm118'],
+        excusedMemberIds: const ['m107'],
+        absentMemberIds: const ['m119'],
+        status: MeetingStatus.published,
+        tasks: [
+          MeetingTask(
+            id: 'task2_1', meetingId: 'meeting2',
+            title: 'Submit updated equipment inventory',
+            assignedMemberId: 'm106',
+            dueDate: d(-10),
+            isCompleted: true,
+            completedAt: d(-12),
+            isVerified: true,
+          ),
+          MeetingTask(
+            id: 'task2_2', meetingId: 'meeting2',
+            title: 'Confirm Platoon 2 section leader vacancy fill',
+            assignedMemberId: 'm118',
+            dueDate: d(-5),
+            isCompleted: false,
+            isVerified: false,
+          ),
+        ],
+        createdAt: d(-23),
+        meetingNumber: 4,
+        meetingYear: now.year,
+        organizerMemberId: 'm101',
+        recorderMemberId: 'm106',
+        approvedByMemberId: 'm2',
+        agendaItems: const [
+          AgendaItem(
+            id: 'agenda2_1', meetingId: 'meeting2', order: 1,
+            topic: 'Equipment Inventory Update',
+            presenterMemberId: 'm106',
+            discussion: 'Reviewed current stock levels against the company equipment list.',
+            decision: 'm106 to submit updated inventory by next week.',
+          ),
+          AgendaItem(
+            id: 'agenda2_2', meetingId: 'meeting2', order: 2,
+            topic: 'Platoon 2 Section Leader Vacancy',
+            presenterMemberId: 'm118',
+            discussion: 'Discussed candidates for the vacant Section 1 leader position.',
+            decision: 'm118 to confirm a recommendation before the next meeting.',
+          ),
+        ],
+        minutes: 'Meeting opened on time with quorum present. Equipment inventory and the Platoon 2 vacancy were the main discussion items. Two action items assigned, see tasks.',
+      ),
+
+      // In-progress committee meeting — Brigade Office
+      Meeting(
+        id: 'meeting3',
+        title: 'Investigation Committee Briefing',
+        titleMm: 'စုံစမ်းစစ်ဆေးရေး ကော်မတီ ရှင်းလင်းပွဲ',
+        type: MeetingType.investigation,
+        date: d(0),
+        timeHour: 9, timeMinute: 30,
+        location: 'Brigade Office Meeting Room',
+        invitedMemberIds: const ['m1', 'm2', 'm3'],
+        attendedMemberIds: const ['m1', 'm2'],
+        status: MeetingStatus.inProgress,
+        tasks: const [],
+        createdAt: d(-1),
+        meetingNumber: 1,
+        meetingYear: now.year,
+        organizerMemberId: 'm2',
+        recorderMemberId: 'm6',
+        agendaItems: const [
+          AgendaItem(
+            id: 'agenda3_1', meetingId: 'meeting3', order: 1,
+            topic: 'Case Briefing — Committee Assignment',
+            presenterMemberId: 'm2',
+          ),
+        ],
+      ),
+    ];
+  }
+
+  static Meeting? findById(String id) {
+    try {
+      return all.firstWhere((m) => m.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void add(Meeting meeting) {
+    all.add(meeting);
+  }
+
+  static void update(Meeting updated) {
+    final index = all.indexWhere((m) => m.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  /// Meetings visible to `member` — Brigade Office sees everything;
+  /// everyone else sees meetings they're invited to, plus meetings
+  /// for their own company (proxied via whether any invited member
+  /// shares their company — same convention used for MockDuties).
+  static List<Meeting> visibleTo(Member viewer) {
+    if (viewer.unitType == UnitType.brigadeOffice) return all;
+    if (PermissionService.hasAdminOrMasterAccess(viewer)) return all;
+
+    return all.where((meeting) {
+      if (meeting.invitedMemberIds.contains(viewer.id)) return true;
+      return meeting.invitedMemberIds.any((id) {
+        final m = MockMembers.findById(id);
+        return m != null && m.companyNo == viewer.companyNo;
+      });
+    }).toList();
+  }
+
+  /// Allocates the next meeting number for `type` within `year`.
+  /// Numbering resets to 1 each January, counted separately per
+  /// MeetingType, per the locked numbering rule from the document
+  /// format spec (e.g. "Officer Meeting No. 3/2026").
+  static int nextMeetingNumber(MeetingType type, int year) {
+    final sameTypeAndYear = all.where(
+      (m) => m.type == type && m.meetingYear == year,
+    );
+    if (sameTypeAndYear.isEmpty) return 1;
+    final maxNumber = sameTypeAndYear
+        .map((m) => m.meetingNumber ?? 0)
+        .reduce((a, b) => a > b ? a : b);
+    return maxNumber + 1;
+  }
+
+  /// Finds the most recent meeting of the same type before `date`,
+  /// used to auto-pull forward its pending tasks into a new meeting.
+  static Meeting? mostRecentOfType(MeetingType type, DateTime beforeDate) {
+    final candidates = all
+        .where((m) => m.type == type && m.date.isBefore(beforeDate))
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return candidates.isEmpty ? null : candidates.first;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2340,4 +2528,114 @@ class MockFundEntries {
 // ═══════════════════════════════════════════════════════════════
 class MockLibrary {
   static final List<LibraryDocument> all = [];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK ACCESS GRANT REQUESTS
+// In-memory store for the section-level access grant system —
+// resets on app restart, replaced by Supabase in Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockAccessGrants {
+  static final List<AccessGrantRequest> all = [];
+
+  static void add(AccessGrantRequest request) {
+    all.add(request);
+  }
+
+  static void update(AccessGrantRequest updated) {
+    final index = all.indexWhere((r) => r.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  /// Active (approved, not expired) grants between this exact
+  /// requester/target pair — what canViewGrantedSection checks against.
+  static List<AccessGrantRequest> activeFor(String requesterId, String targetId) {
+    return all
+        .where((r) =>
+            r.requesterId == requesterId &&
+            r.targetMemberId == targetId &&
+            r.isActive)
+        .toList();
+  }
+
+  /// Pending requests awaiting decision, scoped to `approverCompanyNo`
+  /// — for the Company Commander/Deputy's own inbox of requests to
+  /// review (only requests targeting someone in their own company).
+  static List<AccessGrantRequest> pendingFor(int? approverCompanyNo) {
+    return all.where((r) {
+      if (r.status != AccessGrantStatus.pending) return false;
+      final target = MockMembers.findById(r.targetMemberId);
+      return target != null && target.companyNo == approverCompanyNo;
+    }).toList();
+  }
+
+  /// All requests submitted by `requesterId`, most recent first —
+  /// for the Sergeant Major's own "my requests" view.
+  static List<AccessGrantRequest> submittedBy(String requesterId) {
+    final result = all.where((r) => r.requesterId == requesterId).toList();
+    result.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return result;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK FEATURE ACCESS REQUESTS
+// Generic, module/feature-level access requests — separate from
+// MockAccessGrants (which is the Member-profile-specific system).
+// In-memory store, resets on app restart, replaced by Supabase in
+// Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockFeatureAccessRequests {
+  static final List<FeatureAccessRequest> all = [];
+
+  static void add(FeatureAccessRequest request) {
+    all.add(request);
+  }
+
+  static void update(FeatureAccessRequest updated) {
+    final index = all.indexWhere((r) => r.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  /// All pending requests — Master Access reviews these regardless
+  /// of which company/unit the requester belongs to, since approval
+  /// is always at the top tier for this generic system.
+  static List<FeatureAccessRequest> pending() {
+    final result = all.where((r) => r.status == FeatureAccessStatus.pending).toList();
+    result.sort((a, b) => a.requestedAt.compareTo(b.requestedAt)); // oldest first
+    return result;
+  }
+
+  /// Full history (all statuses), most recent first.
+  static List<FeatureAccessRequest> history() {
+    final result = List<FeatureAccessRequest>.from(all);
+    result.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return result;
+  }
+
+  /// Requests submitted by `requesterId`, most recent first.
+  static List<FeatureAccessRequest> submittedBy(String requesterId) {
+    final result = all.where((r) => r.requesterId == requesterId).toList();
+    result.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return result;
+  }
+
+  /// Is there an active (approved, not expired) grant for
+  /// `requesterId` on `moduleOrFeature`? Exact string match on the
+  /// feature name — useful once a specific screen wants to check
+  /// "has this person been granted access to me specifically."
+  static bool hasActiveAccess(String requesterId, String moduleOrFeature) {
+    return all.any((r) =>
+        r.requesterId == requesterId &&
+        r.moduleOrFeature == moduleOrFeature &&
+        r.isActive);
+  }
 }

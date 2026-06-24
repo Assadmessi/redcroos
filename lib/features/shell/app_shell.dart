@@ -8,6 +8,8 @@ import '../auth/auth_provider.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../members/members_screen.dart';
 import '../duties/duties_screen.dart';
+import '../meetings/meetings_screen.dart';
+import '../access/access_requests_overview_screen.dart';
 import '../availability/my_availability_screen.dart';
 import '../availability/unit_availability_screen.dart';
 
@@ -50,6 +52,7 @@ const _navItems = [
   _NavItem(id: 'fund', labelEn: 'Fund', labelMm: 'ရန်ပုံငွေ', icon: Icons.account_balance_outlined, iconFilled: Icons.account_balance_rounded, requiresPermission: true),
   _NavItem(id: 'archive', labelEn: 'Archive', labelMm: 'မှတ်တမ်း', icon: Icons.archive_outlined, iconFilled: Icons.archive_rounded),
   _NavItem(id: 'settings', labelEn: 'Settings', labelMm: 'ဆက်တင်', icon: Icons.settings_outlined, iconFilled: Icons.settings_rounded),
+  _NavItem(id: 'access_requests', labelEn: 'Access Requests', labelMm: 'အသုံးပြုခွင့် တောင်းခံမှုများ', icon: Icons.lock_open_outlined, iconFilled: Icons.lock_open_rounded),
 ];
 
 const _bottomNavIds = ['dashboard', 'duties', 'meetings', 'blood', 'settings'];
@@ -782,6 +785,10 @@ class _PageContent extends StatelessWidget {
         return const MembersScreen();
       case 'duties':
         return const DutiesScreen();
+      case 'meetings':
+        return const MeetingsScreen();
+      case 'access_requests':
+        return const AccessRequestsOverviewScreen();
       case 'my_availability':
         return const MyAvailabilityScreen();
       case 'unit_availability':

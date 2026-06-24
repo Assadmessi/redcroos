@@ -22,11 +22,15 @@ const _mockCredentials = {
   'RC-103': {'password': '1234', 'memberId': 'm103'}, // Platoon Leader C1/P1
   'RC-104': {'password': '1234', 'memberId': 'm104'}, // Section Leader C1/P1/S1
   'RC-105': {'password': '1234', 'memberId': 'm105'}, // Private C1/P1/S1
+  'RC-106': {'password': '1234', 'memberId': 'm106'}, // Company Sergeant Major C1
+  'RC-107': {'password': '1234', 'memberId': 'm107'}, // Platoon Sergeant C1/P1
 
   // Quick logins for testing
   'admin':   {'password': 'admin123', 'memberId': 'm1'},
   'chief':   {'password': 'chief123', 'memberId': 'm3'},
   'company': {'password': '1234', 'memberId': 'm101'},
+  'sgtmajor': {'password': '1234', 'memberId': 'm106'},
+  'platoonsgt': {'password': '1234', 'memberId': 'm107'},
   'private': {'password': '1234', 'memberId': 'm105'},
 };
 
@@ -109,6 +113,49 @@ class AuthProvider extends ChangeNotifier {
   bool canAssignToPosition(Duty hostDuty) =>
       _currentMember != null &&
       PermissionService.canAssignToPosition(_currentMember!, hostDuty);
+
+  // ── Module 8 additions: Meetings ──
+  bool get canCreateMeeting =>
+      _currentMember != null &&
+      PermissionService.canCreateMeeting(_currentMember!);
+
+  bool canCreateMeetingForUnit(int? targetCompanyNo) =>
+      _currentMember != null &&
+      PermissionService.canCreateMeetingForUnit(_currentMember!, targetCompanyNo);
+
+  bool canManageMeeting(Meeting meeting, int? meetingCompanyNo) =>
+      _currentMember != null &&
+      PermissionService.canManageMeeting(_currentMember!, meeting, meetingCompanyNo);
+
+  bool canMarkAttendance(Meeting meeting) =>
+      _currentMember != null &&
+      PermissionService.canMarkAttendance(_currentMember!, meeting);
+
+  bool canRecordDiscussion(Meeting meeting) =>
+      _currentMember != null &&
+      PermissionService.canRecordDiscussion(_currentMember!, meeting);
+
+  bool get canApproveMinutes =>
+      _currentMember != null &&
+      PermissionService.canApproveMinutes(_currentMember!);
+
+  // ── Access Grant System ──
+  bool canRequestAccessGrant(Member target) =>
+      _currentMember != null &&
+      PermissionService.canRequestAccessGrant(_currentMember!, target);
+
+  bool canApproveAccessGrant(Member target) =>
+      _currentMember != null &&
+      PermissionService.canApproveAccessGrant(_currentMember!, target);
+
+  // ── Generic Feature Access Request System ──
+  bool get canRequestFeatureAccess =>
+      _currentMember != null &&
+      PermissionService.canRequestFeatureAccess(_currentMember!);
+
+  bool get canApproveFeatureAccess =>
+      _currentMember != null &&
+      PermissionService.canApproveFeatureAccess(_currentMember!);
 
   bool canEditDuty(Duty duty) =>
       _currentMember != null &&

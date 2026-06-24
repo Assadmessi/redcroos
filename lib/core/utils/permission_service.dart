@@ -48,10 +48,10 @@ class PermissionService {
 
       case MemberRank.companyCommander:
       case MemberRank.deputyCompanyCommander:
+      case MemberRank.companySergeantMajor:
         return UnitScope.companyWide;
 
       case MemberRank.platoonLeader:
-      case MemberRank.companySergeantMajor:
       case MemberRank.platoonSergeant:
         return UnitScope.platoonWide;
 
@@ -501,6 +501,157 @@ class PermissionService {
     return canMakeDecisionInDuty(member, hostDuty);
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // MODULE 8 ADDITIONS — Meetings Module
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` create a meeting at all (regardless of scope)?
+  /// Master Access/Admin — any unit, any meeting type.
+  /// Deputy Company Commander, Company Commander, Deputy Brigade
+  /// Commander, Brigade Commander — for their own unit only (scope
+  /// checked separately via canCreateMeetingForUnit, since "own unit"
+  /// needs a target company/scope to compare against).
+  static bool canCreateMeeting(Member member) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    const eligibleRanks = {
+      MemberRank.deputyCompanyCommander,
+      MemberRank.companyCommander,
+      MemberRank.deputyBrigadeCommander,
+      MemberRank.brigadeCommander,
+    };
+    return eligibleRanks.contains(member.rank);
+  }
+
+  /// Can `member` create a meeting specifically for `targetCompanyNo`
+  /// (null = brigade-wide)? Master Access/Admin can create for any
+  /// scope. Company Commander/Deputy can only create for their own
+  /// company. Deputy Brigade Commander/Brigade Commander (Brigade
+  /// Office) can create brigade-wide.
+  static bool canCreateMeetingForUnit(Member member, int? targetCompanyNo) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    if (!canCreateMeeting(member)) return false;
+
+    if (member.unitType == UnitType.brigadeOffice) return true; // brigade-wide ok
+
+    // Company-level officer — only their own company.
+    return member.companyNo == targetCompanyNo;
+  }
+
+  /// Can `member` edit/cancel/delete `meeting`'s details? Same
+  /// authority as creating it — the creator's tier, scoped to the
+  /// meeting's own company if it has one.
+  static bool canManageMeeting(Member member, Meeting meeting, int? meetingCompanyNo) {
+    if (meeting.status == MeetingStatus.published) return false; // finalized
+    return canCreateMeetingForUnit(member, meetingCompanyNo);
+  }
+
+  /// Can `member` mark attendance (present/excused/absent) for
+  /// `meeting`? The meeting's organizer/recorder, or Master Access.
+  static bool canMarkAttendance(Member member, Meeting meeting) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return member.id == meeting.organizerMemberId ||
+        member.id == meeting.recorderMemberId;
+  }
+
+  /// Can `member` record discussion/decision text on `meeting`'s
+  /// agenda items? Same authority as marking attendance.
+  static bool canRecordDiscussion(Member member, Meeting meeting) {
+    return canMarkAttendance(member, meeting);
+  }
+
+  /// Can `member` approve/sign off on `meeting`'s minutes, moving it
+  /// from drafted to signed/published? Brigade Office Chief, Deputy
+  /// Brigade Commander, Brigade Commander, or Master Access/Admin —
+  /// the same "leadership sign-off" tier used for formal documents
+  /// throughout the app.
+  static bool canApproveMinutes(Member member) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return member.isBrigadeOfficeChief ||
+        member.rank == MemberRank.deputyBrigadeCommander ||
+        member.rank == MemberRank.brigadeCommander;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODULE 4 ADDITIONS (later) — Section-Level Access Grant System
+  //
+  // Lets a Company Sergeant Major request time-limited, section-
+  // specific access to a profile they can't normally see in detail —
+  // their own Company Commander/Deputy, or any Platoon Leader in
+  // their company. Always routed to Company Commander/Deputy for
+  // approval, regardless of which of the two targets is being
+  // requested. The grantor picks sections + an expiry when approving.
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `requester` submit an access-grant request for `target`'s
+  /// profile? Currently scoped to Company Sergeant Major requesting
+  /// their own Company Commander/Deputy, or a Platoon Leader within
+  /// the same company. (Extendable to other rank pairs later — kept
+  /// narrow for now since that's the only case actually specified.)
+  static bool canRequestAccessGrant(Member requester, Member target) {
+    if (requester.rank != MemberRank.companySergeantMajor) return false;
+    if (requester.companyNo != target.companyNo) return false;
+    final targetIsEligible = target.rank == MemberRank.companyCommander ||
+        target.rank == MemberRank.deputyCompanyCommander ||
+        target.rank == MemberRank.platoonLeader;
+    return targetIsEligible;
+  }
+
+  /// Who can approve/deny an access-grant request for `target`?
+  /// Always the Company Commander or Deputy Company Commander of
+  /// `target`'s own company — same chain whether the request is
+  /// about the Commander/Deputy themselves or about a Platoon Leader.
+  static bool canApproveAccessGrant(Member approver, Member target) {
+    if (hasAdminOrMasterAccess(approver)) return true;
+    final isCompanyLead = approver.rank == MemberRank.companyCommander ||
+        approver.rank == MemberRank.deputyCompanyCommander;
+    if (!isCompanyLead) return false;
+    return approver.companyNo == target.companyNo;
+  }
+
+  /// Can `viewer` see `section` of `target`'s profile, given an
+  /// active (approved, not expired) AccessGrantRequest? Checks the
+  /// most recent matching grant for this requester/target/section
+  /// combination — callers should pass in the relevant grant list
+  /// (e.g. from MockAccessGrants) already filtered to this
+  /// requester+target pair.
+  static bool canViewGrantedSection(
+    List<AccessGrantRequest> grantsForThisPair,
+    ProfileSection section,
+  ) {
+    return grantsForThisPair.any((g) => g.grantsSection(section));
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GENERIC FEATURE ACCESS REQUEST SYSTEM
+  //
+  // Separate from the Member-profile-specific AccessGrantRequest
+  // system above. Any office-tier member (Platoon Office, Company
+  // Office, Brigade Office) can request access to a module/feature
+  // they don't currently have, for their office's work. Always
+  // routed to Master Access for review — see the design note on
+  // FeatureAccessRequest for why this doesn't try to dynamically
+  // resolve "whoever holds that specific permission."
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` submit a generic feature access request at all?
+  /// Any office-tier member — Platoon Office, Company Office, or
+  /// Brigade Office. Master Access doesn't need this (they already
+  /// have everything), so they're excluded rather than redundantly
+  /// allowed.
+  static bool canRequestFeatureAccess(Member member) {
+    if (hasAdminOrMasterAccess(member)) return false;
+    return member.unitType == UnitType.platoonOffice ||
+        member.unitType == UnitType.companyOffice ||
+        member.unitType == UnitType.brigadeOffice;
+  }
+
+  /// Can `member` approve/deny generic feature access requests?
+  /// Master Access/Admin only — these requests are deliberately
+  /// always routed to the top tier, not resolved per-permission.
+  static bool canApproveFeatureAccess(Member member) {
+    return hasAdminOrMasterAccess(member);
+  }
+
   // Two separate questions, deliberately kept apart:
   //   1. canSeeInMemberList — does this member show up at all when
   //      `viewer` searches/browses the Members list? (Brigade-wide
@@ -565,13 +716,17 @@ class PermissionService {
     // protected from below).
     if (targetIsMaster) return false;
 
-    // Standard same-company + outranks rule for everyone else.
+    // Standard same-company + outranks rule for everyone else. Note:
+    // this already gives Company Sergeant Major company-wide detail
+    // visibility over anyone they outrank (no platoon restriction
+    // here — that restriction only applies to getUnitScope, used for
+    // duty/report scope elsewhere, not to Members-screen detail
+    // visibility). Viewing a superior (Commander/Deputy) requires an
+    // approved AccessGrantRequest instead — see canViewGrantedSection.
     if (viewer.companyNo != target.companyNo) return false;
     return RankHelper.isHigherThan(viewer.rank, target.rank);
   }
 
-  /// Can `viewer` see `target`'s ID card fullscreen landscape view?
-  /// Self or Master Access/Admin only — unrelated to detail visibility.
   /// Can `viewer` see `target`'s ID card fullscreen landscape view?
   /// STRICTLY self-only — no exception for any rank, including Master
   /// Access/Admin. Fullscreen is for showing your OWN card to someone

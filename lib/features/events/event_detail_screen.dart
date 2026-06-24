@@ -11,6 +11,7 @@ import '../../core/utils/permission_service.dart';
 import '../auth/auth_provider.dart';
 import 'event_position_form_screen.dart';
 import 'event_route_form_screen.dart';
+import '../access/request_access_link.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -268,6 +269,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       body: Column(
         children: [
           _buildSummaryBar(),
+          if (!canManage)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: RequestAccessLink(featureName: 'Events — Manage Positions & Routes'),
+            ),
           Expanded(
             flex: 4,
             child: positionsWithCoords.isEmpty
