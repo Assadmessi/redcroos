@@ -2411,12 +2411,486 @@ class MockAvailability {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MOCK CLASSES & TRAINING
+// In-memory store — resets on app restart, replaced by Supabase in
+// Module 16. Seeded with real Company 1/3 members and Brigade
+// Office instructors so the Classes module has something real to
+// display and test against.
+// ═══════════════════════════════════════════════════════════════
+class MockClasses {
+  static final List<TrainingClass> all = _seedClasses();
+
+  static List<TrainingClass> _seedClasses() {
+    final now = DateTime.now();
+    DateTime d(int dayOffset) =>
+        DateTime(now.year, now.month, now.day + dayOffset);
+
+    return [
+      // Upcoming class — Company 1, with committee, budget, sessions,
+      // and a video lesson link.
+      TrainingClass(
+        id: 'class1',
+        title: 'First Aid Level 2 Refresher',
+        titleMm: 'အသက်ဆယ်ယူ အဆင့် ၂ ပြန်လည်လေ့ကျင့်ခြင်း',
+        type: ClassType.workshop,
+        category: 'Medical',
+        description: 'Refresher course covering updated first aid protocols, required for First Aid Level 2 certification renewal.',
+        instructorId: 'm101',
+        instructorName: 'U Aung Wai Htun',
+        isExternalInstructor: false,
+        startDate: d(7),
+        endDate: d(9),
+        location: 'Company 1 Training Hall',
+        maxParticipants: 20,
+        enrolledMemberIds: const ['m103', 'm106', 'm107', 'm118'],
+        status: ClassStatus.open,
+        requiredSkillIds: const ['sk1'], // First Aid Level 1
+        awardedSkillIds: const ['sk2'], // First Aid Level 2
+        issuesCertificate: true,
+        hasCommittee: true,
+        committee: const [
+          ClassCommitteeMember(memberId: 'm101', role: 'Chairperson'),
+          ClassCommitteeMember(memberId: 'm102', role: 'Coordinator'),
+          ClassCommitteeMember(memberId: 'm106', role: 'Logistics'),
+        ],
+        budget: ClassBudget(
+          id: 'budget1',
+          classId: 'class1',
+          totalAmount: 150000,
+          fundingSource: FundingSource.organizationFund,
+          categoryAllocations: const {
+            'Materials': 60000,
+            'Refreshments': 50000,
+            'Instructor Honorarium': 40000,
+          },
+          memberLunchAllowed: true,
+          memberTravelAllowed: false,
+          approvalStatus: 'approved',
+          expenses: [
+            ClassExpense(
+              id: 'exp1', classId: 'class1', category: 'Materials',
+              amount: 35000, date: d(-2), paidTo: 'Bahosi Medical Supplies',
+              description: 'Bandages, splints, training manikins rental',
+              loggedById: 'm106', status: ExpenseStatus.approved,
+              paymentStatus: PaymentStatus.paid,
+            ),
+          ],
+        ),
+        timetable: [
+          ClassSession(
+            id: 'session1_1', classId: 'class1', sessionNumber: 1,
+            topic: 'Updated CPR & AED Protocols', date: d(7),
+            startHour: 9, startMinute: 0, endHour: 12, endMinute: 0,
+            location: 'Company 1 Training Hall', facilitator: 'U Aung Wai Htun',
+            status: 'scheduled',
+          ),
+          ClassSession(
+            id: 'session1_2', classId: 'class1', sessionNumber: 2,
+            topic: 'Trauma & Wound Management', date: d(8),
+            startHour: 9, startMinute: 0, endHour: 12, endMinute: 0,
+            location: 'Company 1 Training Hall', facilitator: 'U Aung Wai Htun',
+            status: 'scheduled',
+          ),
+          ClassSession(
+            id: 'session1_3', classId: 'class1', sessionNumber: 3,
+            topic: 'Practical Assessment', date: d(9),
+            startHour: 9, startMinute: 0, endHour: 12, endMinute: 0,
+            location: 'Company 1 Training Hall', facilitator: 'U Aung Wai Htun',
+            status: 'scheduled',
+          ),
+        ],
+        videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      ),
+
+      // Completed class — for testing the Closure Report / Post-
+      // Training Report screens against real outcome data.
+      TrainingClass(
+        id: 'class2',
+        title: 'Disaster Management Fundamentals',
+        titleMm: 'ဘေးအန္တရာယ် စီမံခန့်ခွဲမှု အခြေခံသင်တန်း',
+        type: ClassType.classRoom,
+        category: 'Disaster',
+        description: 'Foundational training on disaster response coordination and the brigade\'s DANA reporting process.',
+        instructorId: 'm2',
+        instructorName: 'U Aung Wai Htun',
+        isExternalInstructor: false,
+        startDate: d(-30),
+        endDate: d(-28),
+        location: 'Brigade Office Conference Room',
+        maxParticipants: 15,
+        enrolledMemberIds: const ['m101', 'm103', 'm302', 'm304'],
+        status: ClassStatus.completed,
+        requiredSkillIds: const [],
+        awardedSkillIds: const ['sk4'], // Disaster Management
+        issuesCertificate: true,
+        hasCommittee: false,
+        committee: const [],
+        timetable: [
+          ClassSession(
+            id: 'session2_1', classId: 'class2', sessionNumber: 1,
+            topic: 'Disaster Response Coordination', date: d(-30),
+            startHour: 13, startMinute: 0, endHour: 16, endMinute: 0,
+            location: 'Brigade Office Conference Room', facilitator: 'U Aung Wai Htun',
+            status: 'completed',
+          ),
+          ClassSession(
+            id: 'session2_2', classId: 'class2', sessionNumber: 2,
+            topic: 'DANA Reporting Workshop', date: d(-28),
+            startHour: 13, startMinute: 0, endHour: 16, endMinute: 0,
+            location: 'Brigade Office Conference Room', facilitator: 'U Aung Wai Htun',
+            status: 'completed',
+          ),
+        ],
+        feedbackQuestions: const [
+          FeedbackQuestion(id: 'fq1', text: 'How would you rate the overall quality of this class?', type: FeedbackQuestionType.rating),
+          FeedbackQuestion(id: 'fq2', text: 'How clear was the instructor\'s explanation?', type: FeedbackQuestionType.rating),
+          FeedbackQuestion(id: 'fq3', text: 'What topics would you like covered in future training?', type: FeedbackQuestionType.text),
+        ],
+      ),
+    ];
+  }
+
+  static TrainingClass? findById(String id) {
+    try {
+      return all.firstWhere((c) => c.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void add(TrainingClass trainingClass) {
+    all.add(trainingClass);
+  }
+
+  static void update(TrainingClass updated) {
+    final index = all.indexWhere((c) => c.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  /// Classes visible to `viewer` — Brigade Office sees everything;
+  /// everyone else sees classes hosted by their own company, plus
+  /// any class they're enrolled in regardless of company (so a
+  /// member who joined a brigade-wide class still sees it).
+  static List<TrainingClass> visibleTo(Member viewer) {
+    if (viewer.unitType == UnitType.brigadeOffice) return all;
+    if (PermissionService.hasAdminOrMasterAccess(viewer)) return all;
+
+    return all.where((c) {
+      if (c.enrolledMemberIds.contains(viewer.id)) return true;
+      final instructor = MockMembers.findById(c.instructorId);
+      if (instructor != null && instructor.companyNo == viewer.companyNo) return true;
+      return c.committee.any((cm) {
+        final m = MockMembers.findById(cm.memberId);
+        return m != null && m.companyNo == viewer.companyNo;
+      });
+    }).toList();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK ENROLLMENT REQUESTS
+// ═══════════════════════════════════════════════════════════════
+class MockEnrollmentRequests {
+  static final List<EnrollmentRequest> all = [];
+
+  static void add(EnrollmentRequest request) {
+    all.add(request);
+  }
+
+  static void update(EnrollmentRequest updated) {
+    final index = all.indexWhere((r) => r.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  static List<EnrollmentRequest> pendingForClass(String classId) {
+    return all
+        .where((r) => r.classId == classId && r.status == EnrollmentRequestStatus.pending)
+        .toList();
+  }
+
+  static List<EnrollmentRequest> submittedBy(String memberId) {
+    final result = all.where((r) => r.memberId == memberId).toList();
+    result.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return result;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK CLASS FEEDBACK
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// MOCK SESSION ATTENDANCE
+// Real per-member, per-session check-in records — what the Closure
+// Report's per-member attendance rates are computed from. In-memory
+// store, resets on app restart, replaced by Supabase in Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockSessionAttendance {
+  static final List<SessionAttendance> all = _seedAttendance();
+
+  static List<SessionAttendance> _seedAttendance() {
+    // Realistic, varied attendance for class2 (Disaster Management
+    // Fundamentals, completed) so the Closure Report's per-member
+    // attendance rates have something meaningful to show:
+    //   m101 — attended both sessions (100%)
+    //   m103 — attended both sessions (100%)
+    //   m302 — attended session 1 only, missed session 2 (50%)
+    //   m304 — missed session 1, attended session 2 (50%)
+    return [
+      const SessionAttendance(sessionId: 'session2_1', memberId: 'm101', present: true),
+      const SessionAttendance(sessionId: 'session2_2', memberId: 'm101', present: true),
+      const SessionAttendance(sessionId: 'session2_1', memberId: 'm103', present: true),
+      const SessionAttendance(sessionId: 'session2_2', memberId: 'm103', present: true),
+      const SessionAttendance(sessionId: 'session2_1', memberId: 'm302', present: true),
+      const SessionAttendance(sessionId: 'session2_2', memberId: 'm302', present: false),
+      const SessionAttendance(sessionId: 'session2_1', memberId: 'm304', present: false),
+      const SessionAttendance(sessionId: 'session2_2', memberId: 'm304', present: true),
+    ];
+  }
+
+  /// Marks `memberId` present/absent for `sessionId`. Replaces any
+  /// existing record for that exact member+session pair.
+  static void setAttendance(String sessionId, String memberId, bool present) {
+    all.removeWhere((a) => a.sessionId == sessionId && a.memberId == memberId);
+    all.add(SessionAttendance(sessionId: sessionId, memberId: memberId, present: present));
+  }
+
+  static bool? attendanceFor(String sessionId, String memberId) {
+    try {
+      return all.firstWhere((a) => a.sessionId == sessionId && a.memberId == memberId).present;
+    } catch (_) {
+      return null; // not yet marked
+    }
+  }
+
+  static List<SessionAttendance> forSession(String sessionId) {
+    return all.where((a) => a.sessionId == sessionId).toList();
+  }
+
+  /// Computes `memberId`'s attendance rate (0.0-1.0) across all of
+  /// `sessionIds` — sessions with no recorded check-in for this
+  /// member are treated as absent, so an incomplete roll call
+  /// correctly lowers the rate rather than being silently excluded.
+  static double attendanceRateFor(String memberId, List<String> sessionIds) {
+    if (sessionIds.isEmpty) return 0;
+    final presentCount = sessionIds.where((sid) => attendanceFor(sid, memberId) == true).length;
+    return presentCount / sessionIds.length;
+  }
+}
+
+class MockClassFeedback {
+  static final List<ClassFeedback> all = [];
+
+  static void add(ClassFeedback feedback) {
+    all.add(feedback);
+  }
+
+  static List<ClassFeedback> forClass(String classId) {
+    return all.where((f) => f.classId == classId).toList();
+  }
+
+  static bool hasSubmitted(String classId, String memberId) {
+    return all.any((f) => f.classId == classId && f.memberId == memberId);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK CLOSURE REPORTS & POST-TRAINING REPORTS
+// One report per class (latest save wins) — in-memory store, resets
+// on app restart, replaced by Supabase in Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockClosureReports {
+  static final List<ClassClosureReport> all = [];
+
+  static void save(ClassClosureReport report) {
+    all.removeWhere((r) => r.classId == report.classId);
+    all.add(report);
+  }
+
+  static ClassClosureReport? forClass(String classId) {
+    try {
+      return all.firstWhere((r) => r.classId == classId);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK CLOSURE REPORT EDIT REQUESTS
+// Post-deadline unlock requests for the Closure Report — always
+// routed to Master Access. In-memory store, resets on app restart,
+// replaced by Supabase in Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockClosureReportEditRequests {
+  static final List<ClosureReportEditRequest> all = [];
+
+  static void add(ClosureReportEditRequest request) {
+    all.add(request);
+  }
+
+  static void update(ClosureReportEditRequest updated) {
+    final index = all.indexWhere((r) => r.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  static List<ClosureReportEditRequest> pending() {
+    final result = all.where((r) => r.status == ClosureReportEditRequestStatus.pending).toList();
+    result.sort((a, b) => a.requestedAt.compareTo(b.requestedAt));
+    return result;
+  }
+
+  /// Currently-granted sections for `classId`'s closure report —
+  /// unions every approved request's sectionsGranted, since multiple
+  /// separate unlock requests could each grant different sections
+  /// over time.
+  static List<ClosureReportSection> grantedSectionsForClass(String classId) {
+    final granted = <ClosureReportSection>{};
+    for (final r in all) {
+      if (r.classId == classId && r.status == ClosureReportEditRequestStatus.approved) {
+        granted.addAll(r.sectionsGranted);
+      }
+    }
+    return granted.toList();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK CLASS NOMINATION LISTS
+// In-memory store, resets on app restart, replaced by Supabase in
+// Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockNominationLists {
+  static final List<ClassNominationList> all = [];
+
+  static void add(ClassNominationList list) {
+    all.add(list);
+  }
+
+  static void update(ClassNominationList updated) {
+    final index = all.indexWhere((l) => l.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  static List<ClassNominationList> pendingForCompany(int companyNo) {
+    return all
+        .where((l) => l.companyNo == companyNo && l.status == NominationListStatus.pending)
+        .toList();
+  }
+
+  /// All pending lists matching `classTitle` exactly, regardless of
+  /// company — a new class can fulfill nomination lists from
+  /// multiple companies at once if several submitted lists for the
+  /// same planned class title.
+  static List<ClassNominationList> matching(String classTitle) {
+    final normalized = classTitle.trim().toLowerCase();
+    return all
+        .where((l) =>
+            l.status == NominationListStatus.pending &&
+            l.plannedClassTitle.trim().toLowerCase() == normalized)
+        .toList();
+  }
+
+  /// Called when a new TrainingClass is created. Finds any pending,
+  /// on-time nomination lists matching the class's title, marks them
+  /// fulfilled, and returns the union of all their nominated member
+  /// IDs — still subject to the caller applying normal eligibility
+  /// checks (required skills, certificate-already-held, max
+  /// participants) before actually enrolling anyone.
+  static List<String> resolveNominationsForNewClass(String classId, String classTitle) {
+    final candidates = matching(classTitle).where((l) => l.wasSubmittedOnTime).toList();
+    final nominatedIds = <String>{};
+
+    for (final list in candidates) {
+      nominatedIds.addAll(list.nominatedMemberIds);
+      update(ClassNominationList(
+        id: list.id, linkedMeetingId: list.linkedMeetingId,
+        linkedAgendaItemId: list.linkedAgendaItemId, plannedClassTitle: list.plannedClassTitle,
+        companyNo: list.companyNo, nominatedMemberIds: list.nominatedMemberIds,
+        submittedByMemberId: list.submittedByMemberId, submittedAt: list.submittedAt,
+        submissionDeadline: list.submissionDeadline,
+        status: NominationListStatus.fulfilled, fulfilledByClassId: classId,
+      ));
+    }
+
+    return nominatedIds.toList();
+  }
+}
+
+class MockPostTrainingReports {
+  static final List<PostTrainingReport> all = [];
+
+  static void save(PostTrainingReport report) {
+    all.removeWhere((r) => r.classId == report.classId);
+    all.add(report);
+  }
+
+  static PostTrainingReport? forClass(String classId) {
+    try {
+      return all.firstWhere((r) => r.classId == classId);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MOCK CERTIFICATES — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockCertificates {
-  static final List<Certificate> all = [];
+  static final List<Certificate> all = _seedCertificates();
 
-  static List<Certificate> forMember(String memberId) => [];
+  static List<Certificate> _seedCertificates() {
+    final now = DateTime.now();
+    return [
+      // m102 already holds the certificate that class1 (First Aid
+      // Level 2 Refresher) would award, and is NOT currently
+      // enrolled — demonstrates "Request to Join" correctly hiding
+      // for someone who already has the matching certificate.
+      Certificate(
+        id: 'cert1',
+        memberId: 'm102',
+        title: 'First Aid Level 2 Refresher',
+        titleMm: 'အသက်ဆယ်ယူ အဆင့် ၂ ပြန်လည်လေ့ကျင့်ခြင်း',
+        certType: 'First Aid Level 2 Refresher',
+        issuedDate: now.subtract(const Duration(days: 200)),
+        issuedById: 'm101',
+        referenceNo: 'CERT-2025-0042',
+      ),
+    ];
+  }
+
+  static List<Certificate> forMember(String memberId) {
+    return all.where((c) => c.memberId == memberId).toList();
+  }
+
+  /// Does `memberId` already hold a certificate whose certType or
+  /// title matches `classTitle`? Used to hide "Request to Join" for
+  /// a class whose certificate the member already has — e.g. they
+  /// completed this same class (or an equivalent one) before.
+  /// Matches on either certType or title since there's no direct
+  /// class-to-certificate-type link in the data model.
+  static bool hasCertificateMatching(String memberId, String classTitle) {
+    final normalizedTitle = classTitle.trim().toLowerCase();
+    return forMember(memberId).any((c) =>
+        c.certType.trim().toLowerCase() == normalizedTitle ||
+        c.title.trim().toLowerCase() == normalizedTitle);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

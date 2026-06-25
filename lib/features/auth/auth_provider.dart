@@ -148,6 +148,68 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canApproveMinutes(_currentMember!);
 
+  // ── Module 9 additions: Classes & Training ──
+  bool get canCreateClass =>
+      _currentMember != null &&
+      PermissionService.canCreateClass(_currentMember!);
+
+  bool canCreateClassForUnit(int? targetCompanyNo) =>
+      _currentMember != null &&
+      PermissionService.canCreateClassForUnit(_currentMember!, targetCompanyNo);
+
+  bool canManageClass(int? classCompanyNo, ClassStatus classStatus) =>
+      _currentMember != null &&
+      PermissionService.canManageClass(_currentMember!, classCompanyNo, classStatus);
+
+  bool canApproveEnrollment(int? classCompanyNo, ClassStatus classStatus) =>
+      _currentMember != null &&
+      PermissionService.canApproveEnrollment(_currentMember!, classCompanyNo, classStatus);
+
+  bool canSubmitFeedback(List<String> enrolledMemberIds) =>
+      _currentMember != null &&
+      PermissionService.canSubmitFeedback(_currentMember!, enrolledMemberIds);
+
+  bool canPrepareClosureReport(int? classCompanyNo) =>
+      _currentMember != null &&
+      PermissionService.canPrepareClosureReport(_currentMember!, classCompanyNo);
+
+  bool canPreparePostTrainingReport(int? classCompanyNo) =>
+      _currentMember != null &&
+      PermissionService.canPreparePostTrainingReport(_currentMember!, classCompanyNo);
+
+  bool get canApprovePostTrainingReport =>
+      _currentMember != null &&
+      PermissionService.canApprovePostTrainingReport(_currentMember!);
+
+  bool canEditClosureReportSection(
+    ClosureReportSection section, {
+    required bool reportIsLocked,
+    required List<ClosureReportSection> grantedSections,
+  }) =>
+      _currentMember != null &&
+      PermissionService.canEditClosureReportSection(
+        _currentMember!,
+        section,
+        reportIsLocked: reportIsLocked,
+        grantedSections: grantedSections,
+      );
+
+  bool get canSetClosureReportDeadline =>
+      _currentMember != null &&
+      PermissionService.canSetClosureReportDeadline(_currentMember!);
+
+  bool canSubmitNominationList(int companyNo) =>
+      _currentMember != null &&
+      PermissionService.canSubmitNominationList(_currentMember!, companyNo);
+
+  bool get canSetNominationDeadline =>
+      _currentMember != null &&
+      PermissionService.canSetNominationDeadline(_currentMember!);
+
+  bool get canApproveClosureReportEditRequest =>
+      _currentMember != null &&
+      PermissionService.canApproveClosureReportEditRequest(_currentMember!);
+
   // ── Access Grant System ──
   bool canRequestAccessGrant(Member target) =>
       _currentMember != null &&

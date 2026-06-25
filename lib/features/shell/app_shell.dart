@@ -9,6 +9,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../members/members_screen.dart';
 import '../duties/duties_screen.dart';
 import '../meetings/meetings_screen.dart';
+import '../classes/classes_screen.dart';
 import '../access/access_requests_overview_screen.dart';
 import '../availability/my_availability_screen.dart';
 import '../availability/unit_availability_screen.dart';
@@ -787,6 +788,8 @@ class _PageContent extends StatelessWidget {
         return const DutiesScreen();
       case 'meetings':
         return const MeetingsScreen();
+      case 'classes':
+        return const ClassesScreen();
       case 'access_requests':
         return const AccessRequestsOverviewScreen();
       case 'my_availability':

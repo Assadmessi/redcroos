@@ -905,4 +905,138 @@ class PermissionService {
     }
     return null; // Platoon Leader and below — Admin can act directly
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODULE 9 ADDITIONS — Classes & Training
+  // Mirrors the Meetings permission pattern (Module 8) exactly,
+  // per the locked decision to use the same creator tier.
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` create a class at all (regardless of scope)?
+  /// Master Access/Admin — any unit. Deputy Company Commander,
+  /// Company Commander, Deputy Brigade Commander, Brigade Commander
+  /// — for their own unit only (scope checked via
+  /// canCreateClassForUnit).
+  static bool canCreateClass(Member member) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    const eligibleRanks = {
+      MemberRank.deputyCompanyCommander,
+      MemberRank.companyCommander,
+      MemberRank.deputyBrigadeCommander,
+      MemberRank.brigadeCommander,
+    };
+    return eligibleRanks.contains(member.rank);
+  }
+
+  /// Can `member` create a class specifically for `targetCompanyNo`
+  /// (null = brigade-wide)? Same scoping rule as
+  /// canCreateMeetingForUnit.
+  static bool canCreateClassForUnit(Member member, int? targetCompanyNo) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    if (!canCreateClass(member)) return false;
+    if (member.unitType == UnitType.brigadeOffice) return true;
+    return member.companyNo == targetCompanyNo;
+  }
+
+  /// Can `member` edit/cancel a class, manage its committee/budget,
+  /// or directly add/remove enrolled members? Same authority as
+  /// creating it — EXCEPT once the class is completed/archived,
+  /// which freezes it completely. There is no request/unlock path
+  /// for the class data itself — only the Closure Report has one
+  /// (see canEditClosureReportSection below).
+  static bool canManageClass(Member member, int? classCompanyNo, ClassStatus classStatus) {
+    if (classStatus == ClassStatus.completed || classStatus == ClassStatus.archived) {
+      return false;
+    }
+    return canCreateClassForUnit(member, classCompanyNo);
+  }
+
+  /// Can `member` edit `section` of a Closure Report right now?
+  /// Always true before the report locks (no deadline set yet, or
+  /// deadline hasn't passed). After locking, only true if `member`
+  /// is Master Access AND `section` is in `grantedSections` from an
+  /// approved ClosureReportEditRequest.
+  static bool canEditClosureReportSection(
+    Member member,
+    ClosureReportSection section, {
+    required bool reportIsLocked,
+    required List<ClosureReportSection> grantedSections,
+  }) {
+    if (!reportIsLocked) return true;
+    if (!hasAdminOrMasterAccess(member)) return false;
+    return grantedSections.contains(section);
+  }
+
+  /// Can `member` set/change a Closure Report's submission deadline?
+  /// Master Access only.
+  static bool canSetClosureReportDeadline(Member member) {
+    return hasAdminOrMasterAccess(member);
+  }
+
+  /// Can `member` submit a ClassNominationList for `companyNo`? Same
+  /// tier as creating a class for that unit — Company Commander/
+  /// Deputy for their own company, Master Access for any.
+  static bool canSubmitNominationList(Member member, int companyNo) {
+    return canCreateClassForUnit(member, companyNo);
+  }
+
+  /// Can `member` set/change a nomination list's submission
+  /// deadline? Master Access only — same tier as the Closure Report
+  /// deadline, per the locked rule.
+  static bool canSetNominationDeadline(Member member) {
+    return hasAdminOrMasterAccess(member);
+  }
+
+  /// Can `member` approve/deny a ClosureReportEditRequest? Master
+  /// Access only — this is the one exception to "finished classes
+  /// can't be touched," and it's deliberately gated to the top tier
+  /// regardless of which company the class belongs to.
+  static bool canApproveClosureReportEditRequest(Member member) {
+    return hasAdminOrMasterAccess(member);
+  }
+
+  /// Can `member` approve/deny an EnrollmentRequest for this class?
+  /// Same authority as managing the class — the instructor/committee
+  /// chain isn't separately modeled yet, so this reuses the class
+  /// management tier. Freezes along with the class once finished,
+  /// same as everything else covered by canManageClass.
+  static bool canApproveEnrollment(Member member, int? classCompanyNo, ClassStatus classStatus) {
+    return canManageClass(member, classCompanyNo, classStatus);
+  }
+
+  /// Can `member` submit feedback for a class? Only members who were
+  /// actually enrolled (and presumably attended) — checked by the
+  /// caller passing in whether this member's id is in
+  /// TrainingClass.enrolledMemberIds, since that's data-dependent
+  /// rather than a pure rank/role rule.
+  static bool canSubmitFeedback(Member member, List<String> enrolledMemberIds) {
+    return enrolledMemberIds.contains(member.id);
+  }
+
+  /// Can `member` prepare a Class Closure Report? Same rank tier as
+  /// managing the class, but DELIBERATELY does not freeze once the
+  /// class is completed/archived — preparing the closure report is
+  /// explicitly a post-completion activity, unlike everything else
+  /// canManageClass covers.
+  static bool canPrepareClosureReport(Member member, int? classCompanyNo) {
+    return canCreateClassForUnit(member, classCompanyNo);
+  }
+
+  /// Can `member` prepare a Post-Training Report (HQ version)? Same
+  /// reasoning as canPrepareClosureReport — must not freeze on
+  /// class completion, since this report is prepared afterward.
+  static bool canPreparePostTrainingReport(Member member, int? classCompanyNo) {
+    return canCreateClassForUnit(member, classCompanyNo);
+  }
+
+  /// Can `member` approve a Post-Training Report (the HQ sign-off)?
+  /// Same "leadership sign-off" tier used for Meeting Minutes
+  /// approval — Brigade Office Chief, Deputy Brigade Commander,
+  /// Brigade Commander, or Master Access/Admin.
+  static bool canApprovePostTrainingReport(Member member) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return member.isBrigadeOfficeChief ||
+        member.rank == MemberRank.deputyBrigadeCommander ||
+        member.rank == MemberRank.brigadeCommander;
+  }
 }

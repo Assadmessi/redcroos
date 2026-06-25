@@ -1012,6 +1012,18 @@ class TrainingClass {
   final ClassBudget? budget;
   final List<ClassSession> timetable;
   final String? minRankRequired;
+  // ── Module 9 addition: online video lessons ──
+  // YouTube "Private" video link (per the locked decision) — shown
+  // via an embedded player or "Open in YouTube" link from the class
+  // detail screen. Private videos are only viewable by people with
+  // the direct link, which is why this is stored per-class rather
+  // than relying on YouTube's own access controls.
+  final String? videoUrl;
+  // ── Module 9 addition: customizable feedback questions ──
+  // The class creator/committee defines whatever questions they want
+  // for this specific class — ClassFeedback (student responses)
+  // answers against whichever questions are listed here.
+  final List<FeedbackQuestion> feedbackQuestions;
 
   const TrainingClass({
     required this.id,
@@ -1038,6 +1050,8 @@ class TrainingClass {
     this.budget,
     required this.timetable,
     this.minRankRequired,
+    this.videoUrl,
+    this.feedbackQuestions = const [],
   });
 
   int get enrolledCount => enrolledMemberIds.length;
@@ -1855,4 +1869,332 @@ class Committee {
     required this.formedDate,
     this.dissolvedDate,
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE 9 ADDITIONS — Classes & Training
+// ═══════════════════════════════════════════════════════════════
+
+enum EnrollmentRequestStatus { pending, approved, denied }
+
+/// A member requesting to join a class — separate from the
+/// instructor directly adding someone to TrainingClass.enrolledMemberIds.
+class EnrollmentRequest {
+  final String id;
+  final String classId;
+  final String memberId;
+  final String? reason;
+  final EnrollmentRequestStatus status;
+  final DateTime requestedAt;
+  final DateTime? decidedAt;
+  final String? decidedByMemberId;
+  final String? denialReason;
+
+  const EnrollmentRequest({
+    required this.id,
+    required this.classId,
+    required this.memberId,
+    this.reason,
+    required this.status,
+    required this.requestedAt,
+    this.decidedAt,
+    this.decidedByMemberId,
+    this.denialReason,
+  });
+}
+
+/// One customizable feedback question — the class creator/committee
+/// defines whatever questions they want for that class.
+class FeedbackQuestion {
+  final String id;
+  final String text;
+  final FeedbackQuestionType type;
+
+  const FeedbackQuestion({
+    required this.id,
+    required this.text,
+    required this.type,
+  });
+}
+
+enum FeedbackQuestionType { rating, text }
+
+/// One enrolled member's attendance record for one specific session
+/// — the real per-session, per-member data the Closure Report's
+/// attendance rates are computed from, replacing the earlier
+/// placeholder that only stored a count per session.
+class SessionAttendance {
+  final String sessionId;
+  final String memberId;
+  final bool present;
+
+  const SessionAttendance({
+    required this.sessionId,
+    required this.memberId,
+    required this.present,
+  });
+}
+
+/// One student's answer to one feedback question.
+class FeedbackAnswer {
+  final String questionId;
+  final int? ratingValue;   // 1-5, used when type == rating
+  final String? textValue;  // used when type == text
+
+  const FeedbackAnswer({
+    required this.questionId,
+    this.ratingValue,
+    this.textValue,
+  });
+}
+
+/// One student's full feedback submission for a class.
+class ClassFeedback {
+  final String id;
+  final String classId;
+  final String memberId;
+  final List<FeedbackAnswer> answers;
+  final DateTime submittedAt;
+  final bool isAnonymous;
+
+  const ClassFeedback({
+    required this.id,
+    required this.classId,
+    required this.memberId,
+    required this.answers,
+    required this.submittedAt,
+    this.isAnonymous = false,
+  });
+}
+
+/// The 6-section Class Closure Report. Sections 1-6 here are reused
+/// as the foundation for the 9-section Post-Training Report (HQ
+/// version), which appends 3 more HQ-specific sections on top —
+/// see PostTrainingReport below.
+class ClassClosureReport {
+  final String id;
+  final String classId;
+  final String preparedByMemberId;
+  final DateTime preparedAt;
+
+  // ── Lock mechanism ──
+  // Master Access sets this manually, per class. The report is
+  // freely editable any number of times until this date passes,
+  // then it locks automatically. Editing after that requires an
+  // approved ClosureReportEditRequest naming specific sections.
+  final DateTime? submissionDeadline;
+
+  // Section 1: Class Overview — derived from TrainingClass itself,
+  // not duplicated here; the report screen reads it directly.
+
+  // Section 2: Attendance Summary
+  final int totalEnrolled;
+  final int totalCompleted;
+  final Map<String, int> sessionAttendanceCounts; // sessionId -> count present
+  // memberId -> attendance rate (0.0-1.0), computed from real
+  // SessionAttendance check-in records across all of the class's
+  // sessions — replaces the earlier placeholder that approximated
+  // attendance using total enrollment.
+  final Map<String, double> memberAttendanceRates;
+
+  // Section 3: Budget Summary
+  final double totalAllocated;
+  final double totalSpent;
+
+  // Section 4: Outcomes
+  final List<String> skillsAwardedSummary; // skill names, for display
+  final int certificatesIssuedCount;
+
+  // Section 5: Issues / Challenges
+  final String? issuesEncountered;
+
+  // Section 6: Recommendations
+  final String? recommendations;
+
+  const ClassClosureReport({
+    required this.id,
+    required this.classId,
+    required this.preparedByMemberId,
+    required this.preparedAt,
+    this.submissionDeadline,
+    required this.totalEnrolled,
+    required this.totalCompleted,
+    required this.sessionAttendanceCounts,
+    this.memberAttendanceRates = const {},
+    required this.totalAllocated,
+    required this.totalSpent,
+    required this.skillsAwardedSummary,
+    required this.certificatesIssuedCount,
+    this.issuesEncountered,
+    this.recommendations,
+  });
+
+  double get budgetUtilizationPercent =>
+      totalAllocated == 0 ? 0 : (totalSpent / totalAllocated) * 100;
+
+  double get completionRatePercent =>
+      totalEnrolled == 0 ? 0 : (totalCompleted / totalEnrolled) * 100;
+
+  /// True once submissionDeadline has passed. Before that (or if no
+  /// deadline has been set yet), the report stays freely editable.
+  /// Once locked, editing requires an approved ClosureReportEditRequest.
+  bool get isLocked =>
+      submissionDeadline != null && DateTime.now().isAfter(submissionDeadline!);
+}
+
+/// The 6 sections of the Closure Report, used by
+/// ClosureReportEditRequest to name exactly which section(s) a
+/// post-deadline edit request is asking to unlock. Section 1 (Class
+/// Overview) is intentionally excluded — it's derived from the
+/// underlying TrainingClass, which is frozen once completed/archived
+/// with no exceptions, so there's nothing on the report itself to
+/// unlock for that section.
+enum ClosureReportSection {
+  attendanceSummary,
+  budgetSummary,
+  outcomes,
+  issuesEncountered,
+  recommendations,
+}
+
+extension ClosureReportSectionDisplay on ClosureReportSection {
+  String get label {
+    switch (this) {
+      case ClosureReportSection.attendanceSummary: return 'Attendance Summary';
+      case ClosureReportSection.budgetSummary: return 'Budget Summary';
+      case ClosureReportSection.outcomes: return 'Outcomes';
+      case ClosureReportSection.issuesEncountered: return 'Issues / Challenges';
+      case ClosureReportSection.recommendations: return 'Recommendations';
+    }
+  }
+}
+
+enum ClosureReportEditRequestStatus { pending, approved, denied }
+
+/// A request to edit specific section(s) of an already-locked
+/// (post-deadline) Closure Report. Always routed to Master Access —
+/// per the locked rule that post-deadline closure report edits are
+/// the one exception to "finished classes can't be touched," and
+/// that exception is Master-Access-gated specifically.
+class ClosureReportEditRequest {
+  final String id;
+  final String classId;
+  final String closureReportId;
+  final String requesterId;
+  final List<ClosureReportSection> sectionsRequested;
+  final String reason;
+  final ClosureReportEditRequestStatus status;
+  final String? approverId;
+  final List<ClosureReportSection> sectionsGranted; // may be a subset of requested
+  final DateTime requestedAt;
+  final DateTime? decidedAt;
+  final String? denialReason;
+
+  const ClosureReportEditRequest({
+    required this.id,
+    required this.classId,
+    required this.closureReportId,
+    required this.requesterId,
+    required this.sectionsRequested,
+    required this.reason,
+    required this.status,
+    this.approverId,
+    this.sectionsGranted = const [],
+    required this.requestedAt,
+    this.decidedAt,
+    this.denialReason,
+  });
+}
+
+/// The 9-section Post-Training Report for HQ — wraps a
+/// ClassClosureReport (sections 1-6) and appends the 3 HQ-specific
+/// sections (7-9).
+class PostTrainingReport {
+  final String id;
+  final String classId;
+  final String closureReportId; // links back to the underlying 6-section report
+  final String preparedByMemberId;
+  final DateTime preparedAt;
+  final String? approvedByMemberId;
+
+  // Section 7: Impact Assessment
+  final String? impactAssessment;
+
+  // Section 8: Skill Verification
+  final Map<String, bool> skillVerificationByMemberId; // memberId -> verified
+
+  // Section 9: Future Planning
+  final String? futurePlanning;
+
+  const PostTrainingReport({
+    required this.id,
+    required this.classId,
+    required this.closureReportId,
+    required this.preparedByMemberId,
+    required this.preparedAt,
+    this.approvedByMemberId,
+    this.impactAssessment,
+    this.skillVerificationByMemberId = const {},
+    this.futurePlanning,
+  });
+
+  bool get isApproved => approvedByMemberId != null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS NOMINATION LIST
+//
+// When a Meeting decides that certain companies/members should
+// attend a future class (before the class itself exists), the
+// Company Commander/Deputy submits a nomination list — linked to
+// the specific Meeting + AgendaItem/Decision that authorized it.
+// If submitted before its Master-Access-set deadline, the nominated
+// members auto-enroll the moment a class is created whose title
+// exactly matches plannedClassTitle. Auto-enrollment still respects
+// normal eligibility checks (required skills, certificate-already-
+// held, max participants) — a nominee can be silently skipped if
+// they don't qualify once the real class exists.
+// ═══════════════════════════════════════════════════════════════
+
+enum NominationListStatus { pending, expired, fulfilled }
+
+class ClassNominationList {
+  final String id;
+  final String linkedMeetingId;
+  final String linkedAgendaItemId;
+  final String plannedClassTitle; // must exactly match the class title later
+  final int companyNo;
+  final List<String> nominatedMemberIds;
+  final String submittedByMemberId;
+  final DateTime submittedAt;
+  final DateTime? submissionDeadline; // set by Master Access only
+  final NominationListStatus status;
+  final String? fulfilledByClassId; // set once a matching class auto-enrolls these members
+
+  const ClassNominationList({
+    required this.id,
+    required this.linkedMeetingId,
+    required this.linkedAgendaItemId,
+    required this.plannedClassTitle,
+    required this.companyNo,
+    required this.nominatedMemberIds,
+    required this.submittedByMemberId,
+    required this.submittedAt,
+    this.submissionDeadline,
+    required this.status,
+    this.fulfilledByClassId,
+  });
+
+  /// Was this list submitted before its deadline? If no deadline was
+  /// ever set, treat it as not yet eligible — Master Access must set
+  /// one before a list can actually be honored, per the locked rule
+  /// that deadline-setting is Master-Access-only.
+  bool get wasSubmittedOnTime {
+    if (submissionDeadline == null) return false;
+    return submittedAt.isBefore(submissionDeadline!) ||
+        submittedAt.isAtSameMomentAs(submissionDeadline!);
+  }
+
+  bool get isEligibleForAutoEnroll =>
+      status == NominationListStatus.pending && wasSubmittedOnTime;
 }
