@@ -1938,20 +1938,32 @@ class MockMeetings {
         organizerMemberId: 'm101',
         recorderMemberId: 'm106',
         approvedByMemberId: 'm2',
-        agendaItems: const [
+        agendaItems: [
           AgendaItem(
             id: 'agenda2_1', meetingId: 'meeting2', order: 1,
             topic: 'Equipment Inventory Update',
             presenterMemberId: 'm106',
-            discussion: 'Reviewed current stock levels against the company equipment list.',
-            decision: 'm106 to submit updated inventory by next week.',
+            discussionEntries: [
+              DiscussionEntry(id: 'disc1', speakerMemberId: 'm106', comment: 'Current stock is short on stretchers — only 5 of 6 accounted for.'),
+              DiscussionEntry(id: 'disc2', speakerMemberId: 'm101', comment: 'One stretcher was loaned to Company 3 last month, should be returned by now.'),
+              DiscussionEntry(id: 'disc3', speakerMemberId: 'm102', comment: 'Will follow up with Company 3 directly this week.'),
+            ],
+            decisions: const [
+              DecisionEntry(id: 'dec1', decisionText: 'Ko Wai Phyo Paing to submit updated inventory by next week.', approvedByMemberId: 'm101'),
+              DecisionEntry(id: 'dec2', decisionText: 'U Aung Wai Htun to recover the loaned stretcher from Company 3.', approvedByMemberId: 'm101'),
+            ],
           ),
           AgendaItem(
             id: 'agenda2_2', meetingId: 'meeting2', order: 2,
             topic: 'Platoon 2 Section Leader Vacancy',
             presenterMemberId: 'm118',
-            discussion: 'Discussed candidates for the vacant Section 1 leader position.',
-            decision: 'm118 to confirm a recommendation before the next meeting.',
+            discussionEntries: [
+              DiscussionEntry(id: 'disc4', speakerMemberId: 'm118', comment: 'Two candidates from Section 1 have shown interest in the vacancy.'),
+              DiscussionEntry(id: 'disc5', speakerMemberId: 'm103', comment: 'Recommend evaluating both on duty performance over the next month before deciding.'),
+            ],
+            decisions: const [
+              DecisionEntry(id: 'dec3', decisionText: 'U Pyae Phyo Aung to confirm a recommendation before the next meeting.', approvedByMemberId: 'm101'),
+            ],
           ),
         ],
         minutes: 'Meeting opened on time with quorum present. Equipment inventory and the Platoon 2 vacancy were the main discussion items. Two action items assigned, see tasks.',
@@ -2054,9 +2066,81 @@ class MockMeetings {
 // MOCK INVESTIGATIONS — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockInvestigations {
-  static final List<Investigation> all = [];
+  // In-memory store — resets on app restart, replaced by Supabase in
+  // Module 16. Seeded with one ongoing investigation so the Meetings
+  // module's Investigation/Committee meeting-type gating has
+  // something real to check against ahead of Module 11 being built.
+  static final List<Investigation> all = [
+    Investigation(
+      id: 'inv1',
+      caseNumber: 'INV-2026-01',
+      title: 'Conduct review — duty attendance discrepancy',
+      description: 'Reviewing repeated unexplained absences from assigned duties.',
+      openedDate: DateTime.now().subtract(const Duration(days: 10)),
+      status: InvestigationStatus.underInvestigation,
+      accusedMemberIds: const ['m119'],
+      witnessMemberIds: const ['m107'],
+      committeeMemberIds: const ['m2', 'm3', 'm101'],
+      recusedMemberIds: const [],
+      appealCommitteeMemberIds: const [],
+      approvedSealedViewers: const [],
+      committeeJoinDates: const {},
+      stageLogs: const [],
+      attachments: const [],
+      isSealed: false,
+    ),
+  ];
 
-  static Investigation? findById(String id) => null;
+  static Investigation? findById(String id) {
+    try {
+      return all.firstWhere((i) => i.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Is there any investigation currently in an active stage (not
+  /// concluded/closed)? Used to gate Investigation Meeting
+  /// availability — only appears when there's something to actually
+  /// meet about.
+  static bool get hasOngoingInvestigation {
+    return all.any((i) =>
+        i.status != InvestigationStatus.closed &&
+        i.status != InvestigationStatus.concluded &&
+        i.status != InvestigationStatus.appealConcluded);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK COMMITTEES
+// Minimal placeholder store — see the Committee model's own comment
+// for why this exists ahead of full Class/Investigation modules.
+// ═══════════════════════════════════════════════════════════════
+class MockCommittees {
+  static final List<Committee> all = [
+    Committee(
+      id: 'committee1',
+      name: 'Conduct Review Committee — INV-2026-01',
+      purpose: CommitteePurpose.investigation,
+      linkedInvestigationId: 'inv1',
+      memberIds: const ['m2', 'm3', 'm101'],
+      isActive: true,
+      formedDate: DateTime.now().subtract(const Duration(days: 9)),
+    ),
+  ];
+
+  static Committee? findById(String id) {
+    try {
+      return all.firstWhere((c) => c.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Is there any currently active committee, for any purpose
+  /// (investigation, class, disciplinary, or other special
+  /// situation)? Used to gate Committee Meeting availability.
+  static bool get hasActiveCommittee => all.any((c) => c.isActive);
 }
 
 // ═══════════════════════════════════════════════════════════════

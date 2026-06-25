@@ -522,6 +522,46 @@ class PermissionService {
     return eligibleRanks.contains(member.rank);
   }
 
+  /// Which MeetingTypes are actually available for `member` to pick
+  /// right now? Combines the existing rank-based create eligibility
+  /// with conditional availability — some types only make sense to
+  /// offer when the real-world situation that justifies them exists:
+  ///   - Investigation: only if there's an ongoing investigation
+  ///   - Committee: only if any committee currently has an active
+  ///     form (investigation, class, or other special situation)
+  ///   - Youth Group: only for Youth Wing LEADERSHIP specifically
+  ///     (YouthGroupRole.leader), not all youth group members
+  /// General/Officer/Youth Leaders/Custom have no special condition
+  /// beyond the base canCreateMeeting rank rule.
+  ///
+  /// `hasOngoingInvestigation` and `hasActiveCommittee` are passed in
+  /// by the caller (from MockInvestigations/MockCommittees) rather
+  /// than looked up here directly, since permission_service.dart
+  /// must not depend on mock_data.dart (mock_data.dart already
+  /// depends on this file — a reverse import would be circular).
+  static List<MeetingType> availableMeetingTypesFor(
+    Member member, {
+    required bool hasOngoingInvestigation,
+    required bool hasActiveCommittee,
+  }) {
+    if (!canCreateMeeting(member)) return [];
+
+    final types = <MeetingType>[
+      MeetingType.general,
+      MeetingType.officer,
+      MeetingType.youthLeaders,
+      MeetingType.custom,
+    ];
+
+    if (hasOngoingInvestigation) types.add(MeetingType.investigation);
+    if (hasActiveCommittee) types.add(MeetingType.committee);
+    if (member.youthGroupRole == YouthGroupRole.leader) {
+      types.add(MeetingType.youthGroup);
+    }
+
+    return types;
+  }
+
   /// Can `member` create a meeting specifically for `targetCompanyNo`
   /// (null = brigade-wide)? Master Access/Admin can create for any
   /// scope. Company Commander/Deputy can only create for their own

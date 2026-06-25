@@ -270,8 +270,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         children: [
           _buildSummaryBar(),
           if (!canManage)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: RequestAccessLink(featureName: 'Events — Manage Positions & Routes'),
             ),
           Expanded(
@@ -374,7 +374,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.map_outlined, size: 40, color: AppColors.grey500),
+              const Icon(Icons.map_outlined, size: 40, color: AppColors.grey500),
               const SizedBox(height: 12),
               Text(
                 'No positions added yet',

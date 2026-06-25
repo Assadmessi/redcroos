@@ -865,19 +865,80 @@ class Meeting {
   /// into a new meeting's agenda.
   List<MeetingTask> get pendingTasks =>
       tasks.where((t) => !t.isCompleted).toList();
+
+  /// All discussion entries across every agenda item, flattened —
+  /// for the separate Discussion Summary section, distinct from the
+  /// per-item detail shown alongside each agenda topic.
+  List<({AgendaItem item, DiscussionEntry entry})> get allDiscussionEntries {
+    final result = <({AgendaItem item, DiscussionEntry entry})>[];
+    for (final item in agendaItems) {
+      for (final entry in item.discussionEntries) {
+        result.add((item: item, entry: entry));
+      }
+    }
+    return result;
+  }
+
+  /// All decisions across every agenda item, flattened — for the
+  /// separate Decisions Summary section.
+  List<({AgendaItem item, DecisionEntry decision})> get allDecisions {
+    final result = <({AgendaItem item, DecisionEntry decision})>[];
+    for (final item in agendaItems) {
+      for (final decision in item.decisions) {
+        result.add((item: item, decision: decision));
+      }
+    }
+    return result;
+  }
 }
 
 // ─────────────────────────────────────────────
 // AGENDA ITEM MODEL
 // ─────────────────────────────────────────────
+/// One person's discussion comment under an agenda item — multiple
+/// speakers can each contribute their own entry, instead of a single
+/// combined discussion paragraph.
+class DiscussionEntry {
+  final String id;
+  final String speakerMemberId;
+  final String comment;
+
+  const DiscussionEntry({
+    required this.id,
+    required this.speakerMemberId,
+    required this.comment,
+  });
+}
+
+/// One decision reached on an agenda item, attributed to whoever
+/// approved/proposed it. An agenda item can have multiple distinct
+/// decisions.
+class DecisionEntry {
+  final String id;
+  final String decisionText;
+  final String approvedByMemberId;
+
+  const DecisionEntry({
+    required this.id,
+    required this.decisionText,
+    required this.approvedByMemberId,
+  });
+}
+
 class AgendaItem {
   final String id;
   final String meetingId;
   final int order;
   final String topic;
   final String? presenterMemberId;
+  // Kept for backward compatibility with any data created before
+  // multi-speaker/multi-decision support — new agenda items should
+  // use discussionEntries/decisions below instead.
   final String? discussion;
   final String? decision;
+
+  final List<DiscussionEntry> discussionEntries;
+  final List<DecisionEntry> decisions;
 
   const AgendaItem({
     required this.id,
@@ -887,9 +948,15 @@ class AgendaItem {
     this.presenterMemberId,
     this.discussion,
     this.decision,
+    this.discussionEntries = const [],
+    this.decisions = const [],
   });
 
-  bool get hasDecision => decision != null && decision!.trim().isNotEmpty;
+  bool get hasDecision =>
+      decisions.isNotEmpty || (decision != null && decision!.trim().isNotEmpty);
+
+  bool get hasDiscussion =>
+      discussionEntries.isNotEmpty || (discussion != null && discussion!.trim().isNotEmpty);
 }
 
 // ─────────────────────────────────────────────
@@ -1753,4 +1820,39 @@ class KnownFeatureAreas {
     'Settings',
     'Other (describe in reason)',
   ];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMMITTEE MODEL — minimal placeholder
+//
+// Supports gating Committee Meeting availability ("only appear if
+// any committee currently has a form") without building full
+// committee management yet. A committee can be formed for an
+// investigation, a class, or any other special situation that
+// needs one — this model is deliberately generic rather than tied
+// to one specific module, since those (Investigations = Module 11,
+// Classes = Module 9) aren't built yet either.
+// ═══════════════════════════════════════════════════════════════
+enum CommitteePurpose { investigation, classTraining, disciplinary, special, other }
+
+class Committee {
+  final String id;
+  final String name;
+  final CommitteePurpose purpose;
+  final String? linkedInvestigationId; // set if purpose == investigation
+  final List<String> memberIds;
+  final bool isActive;
+  final DateTime formedDate;
+  final DateTime? dissolvedDate;
+
+  const Committee({
+    required this.id,
+    required this.name,
+    required this.purpose,
+    this.linkedInvestigationId,
+    required this.memberIds,
+    required this.isActive,
+    required this.formedDate,
+    this.dissolvedDate,
+  });
 }

@@ -119,6 +119,15 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canCreateMeeting(_currentMember!);
 
+  List<MeetingType> get availableMeetingTypes {
+    if (_currentMember == null) return [];
+    return PermissionService.availableMeetingTypesFor(
+      _currentMember!,
+      hasOngoingInvestigation: MockInvestigations.hasOngoingInvestigation,
+      hasActiveCommittee: MockCommittees.hasActiveCommittee,
+    );
+  }
+
   bool canCreateMeetingForUnit(int? targetCompanyNo) =>
       _currentMember != null &&
       PermissionService.canCreateMeetingForUnit(_currentMember!, targetCompanyNo);

@@ -318,7 +318,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: AppColors.primary),
+                const Icon(Icons.chevron_right, color: AppColors.primary),
               ],
             ),
           ),
@@ -412,7 +412,7 @@ class _MembersScreenState extends State<MembersScreen> {
         children: [
           if (showMyUnitChip) ...[
             FilterChip(
-              label: Text(_myUnitLabel(me!)),
+              label: Text(_myUnitLabel(me)),
               selected: _myUnitOnly,
               onSelected: (val) => setState(() => _myUnitOnly = val),
               selectedColor: AppColors.primary.withValues(alpha: 0.15),
@@ -503,7 +503,7 @@ class _MembersScreenState extends State<MembersScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.person_search, size: 48, color: AppColors.grey50),
+          const Icon(Icons.person_search, size: 48, color: AppColors.grey50),
           const SizedBox(height: 12),
           Text(
             auth.tr('No members found', 'မည်သည့်အဖွဲ့ဝင်မှ တွေ့မရှိပါ'),

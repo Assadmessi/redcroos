@@ -56,15 +56,76 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     });
   }
 
-  void _updateAgendaItem(int index, {String? discussion, String? decision}) {
+  void _addDiscussionEntry(int index, String speakerMemberId, String comment) {
     setState(() {
       final items = List<AgendaItem>.from(_meeting.agendaItems);
       final item = items[index];
+      final entries = List<DiscussionEntry>.from(item.discussionEntries)
+        ..add(DiscussionEntry(
+          id: 'disc_${DateTime.now().microsecondsSinceEpoch}',
+          speakerMemberId: speakerMemberId,
+          comment: comment,
+        ));
       items[index] = AgendaItem(
         id: item.id, meetingId: item.meetingId, order: item.order,
         topic: item.topic, presenterMemberId: item.presenterMemberId,
-        discussion: discussion ?? item.discussion,
-        decision: decision ?? item.decision,
+        discussion: item.discussion, decision: item.decision,
+        discussionEntries: entries, decisions: item.decisions,
+      );
+      _meeting = _copyMeeting(agendaItems: items);
+      MockMeetings.update(_meeting);
+    });
+  }
+
+  void _removeDiscussionEntry(int itemIndex, String entryId) {
+    setState(() {
+      final items = List<AgendaItem>.from(_meeting.agendaItems);
+      final item = items[itemIndex];
+      final entries = List<DiscussionEntry>.from(item.discussionEntries)
+        ..removeWhere((e) => e.id == entryId);
+      items[itemIndex] = AgendaItem(
+        id: item.id, meetingId: item.meetingId, order: item.order,
+        topic: item.topic, presenterMemberId: item.presenterMemberId,
+        discussion: item.discussion, decision: item.decision,
+        discussionEntries: entries, decisions: item.decisions,
+      );
+      _meeting = _copyMeeting(agendaItems: items);
+      MockMeetings.update(_meeting);
+    });
+  }
+
+  void _addDecisionEntry(int index, String decisionText, String approvedByMemberId) {
+    setState(() {
+      final items = List<AgendaItem>.from(_meeting.agendaItems);
+      final item = items[index];
+      final decisions = List<DecisionEntry>.from(item.decisions)
+        ..add(DecisionEntry(
+          id: 'dec_${DateTime.now().microsecondsSinceEpoch}',
+          decisionText: decisionText,
+          approvedByMemberId: approvedByMemberId,
+        ));
+      items[index] = AgendaItem(
+        id: item.id, meetingId: item.meetingId, order: item.order,
+        topic: item.topic, presenterMemberId: item.presenterMemberId,
+        discussion: item.discussion, decision: item.decision,
+        discussionEntries: item.discussionEntries, decisions: decisions,
+      );
+      _meeting = _copyMeeting(agendaItems: items);
+      MockMeetings.update(_meeting);
+    });
+  }
+
+  void _removeDecisionEntry(int itemIndex, String decisionId) {
+    setState(() {
+      final items = List<AgendaItem>.from(_meeting.agendaItems);
+      final item = items[itemIndex];
+      final decisions = List<DecisionEntry>.from(item.decisions)
+        ..removeWhere((d) => d.id == decisionId);
+      items[itemIndex] = AgendaItem(
+        id: item.id, meetingId: item.meetingId, order: item.order,
+        topic: item.topic, presenterMemberId: item.presenterMemberId,
+        discussion: item.discussion, decision: item.decision,
+        discussionEntries: item.discussionEntries, decisions: decisions,
       );
       _meeting = _copyMeeting(agendaItems: items);
       MockMeetings.update(_meeting);
@@ -187,6 +248,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           _buildAttendanceCard(canMarkAttendance),
           const SizedBox(height: 16),
           _buildAgendaCard(canRecordDiscussion),
+          const SizedBox(height: 16),
+          _buildDiscussionSummaryCard(),
+          const SizedBox(height: 16),
+          _buildDecisionsSummaryCard(),
         ],
       ),
     );
@@ -385,6 +450,106 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     );
   }
 
+  Widget _buildDiscussionSummaryCard() {
+    final entries = _meeting.allDiscussionEntries;
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Discussion Summary', style: AppTextStyles.headingSmall),
+            const SizedBox(height: 4),
+            Text(
+              'All discussion across the meeting, in one place.',
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+            ),
+            const SizedBox(height: 8),
+            ...entries.map((pair) {
+              final speaker = MockMembers.findById(pair.entry.speakerMemberId);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 11,
+                      backgroundColor: speaker != null ? AvatarColorGen.fromString(speaker.id) : AppColors.grey500,
+                      child: Text(speaker?.initials ?? '?', style: const TextStyle(color: Colors.white, fontSize: 9)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${speaker?.nameEn ?? pair.entry.speakerMemberId} — on "${pair.item.topic}"',
+                            style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.grey700),
+                          ),
+                          Text(pair.entry.comment, style: AppTextStyles.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDecisionsSummaryCard() {
+    final decisions = _meeting.allDecisions;
+    if (decisions.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Decisions Summary', style: AppTextStyles.headingSmall),
+            const SizedBox(height: 4),
+            Text(
+              'All decisions reached in this meeting, with who approved each.',
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+            ),
+            const SizedBox(height: 8),
+            ...decisions.map((pair) {
+              final approver = MockMembers.findById(pair.decision.approvedByMemberId);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(pair.decision.decisionText, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+                          Text(
+                            'On "${pair.item.topic}" — approved by ${approver?.nameEn ?? pair.decision.approvedByMemberId}',
+                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAgendaCard(bool canRecordDiscussion) {
     if (_meeting.agendaItems.isEmpty) {
       return Card(
@@ -443,36 +608,241 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               padding: const EdgeInsets.only(top: 4, left: 32),
               child: Text('Presented by ${presenter.nameEn}', style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500)),
             ),
-          if (canRecordDiscussion) ...[
-            const SizedBox(height: 8),
-            TextFormField(
-              initialValue: item.discussion,
-              decoration: const InputDecoration(labelText: 'Discussion', border: OutlineInputBorder(), isDense: true),
-              maxLines: 2,
-              onChanged: (v) => _updateAgendaItem(index, discussion: v),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              initialValue: item.decision,
-              decoration: const InputDecoration(labelText: 'Decision', border: OutlineInputBorder(), isDense: true),
-              maxLines: 2,
-              onChanged: (v) => _updateAgendaItem(index, decision: v),
-            ),
-          ] else ...[
+          const SizedBox(height: 8),
+
+          // ── Discussion entries (multiple speakers) ──
+          Text('Discussion', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.grey700)),
+          const SizedBox(height: 4),
+          if (item.discussionEntries.isEmpty && !(item.discussion?.isNotEmpty ?? false))
+            Text('No discussion recorded.', style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500))
+          else ...[
+            // Legacy single-string discussion, if present from before
+            // multi-speaker support existed.
             if (item.discussion != null && item.discussion!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text('Discussion: ${item.discussion}', style: AppTextStyles.bodySmall),
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(item.discussion!, style: AppTextStyles.bodySmall),
               ),
-            if (item.hasDecision)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text('Decision: ${item.decision}',
-                    style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
-              ),
+            ...item.discussionEntries.map((e) => _discussionRow(index, e, canRecordDiscussion)),
           ],
+          if (canRecordDiscussion)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _openAddDiscussionSheet(index),
+                icon: const Icon(Icons.add_comment_outlined, size: 16),
+                label: const Text('Add Speaker Comment'),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
+          // ── Decision entries (multiple, each attributed) ──
+          Text('Decisions', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.grey700)),
+          const SizedBox(height: 4),
+          if (item.decisions.isEmpty && !item.hasDecision)
+            Text('No decisions recorded.', style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500))
+          else ...[
+            if (item.decision != null && item.decision!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(item.decision!, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ...item.decisions.map((d) => _decisionRow(index, d, canRecordDiscussion)),
+          ],
+          if (canRecordDiscussion)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _openAddDecisionSheet(index),
+                icon: const Icon(Icons.gavel_outlined, size: 16),
+                label: const Text('Add Decision'),
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _discussionRow(int itemIndex, DiscussionEntry entry, bool canRecordDiscussion) {
+    final speaker = MockMembers.findById(entry.speakerMemberId);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 11,
+            backgroundColor: speaker != null ? AvatarColorGen.fromString(speaker.id) : AppColors.grey500,
+            child: Text(speaker?.initials ?? '?', style: const TextStyle(color: Colors.white, fontSize: 9)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: AppTextStyles.bodySmall.copyWith(color: Colors.black),
+                children: [
+                  TextSpan(
+                    text: '${speaker?.nameEn ?? entry.speakerMemberId}: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(text: entry.comment),
+                ],
+              ),
+            ),
+          ),
+          if (canRecordDiscussion)
+            InkWell(
+              onTap: () => _removeDiscussionEntry(itemIndex, entry.id),
+              child: const Icon(Icons.close, size: 14, color: AppColors.grey500),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _decisionRow(int itemIndex, DecisionEntry decision, bool canRecordDiscussion) {
+    final approver = MockMembers.findById(decision.approvedByMemberId);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.check_circle, size: 14, color: Colors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: AppTextStyles.bodySmall.copyWith(color: Colors.black, fontWeight: FontWeight.w600),
+                children: [
+                  TextSpan(text: '${decision.decisionText} '),
+                  TextSpan(
+                    text: '— approved by ${approver?.nameEn ?? decision.approvedByMemberId}',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500, fontWeight: FontWeight.normal),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (canRecordDiscussion)
+            InkWell(
+              onTap: () => _removeDecisionEntry(itemIndex, decision.id),
+              child: const Icon(Icons.close, size: 14, color: AppColors.grey500),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _openAddDiscussionSheet(int itemIndex) {
+    String? selectedSpeakerId;
+    final commentCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: 16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Add Speaker Comment', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedSpeakerId,
+                    decoration: const InputDecoration(labelText: 'Speaker', border: OutlineInputBorder()),
+                    items: _meeting.invitedMemberIds.map((id) {
+                      final m = MockMembers.findById(id);
+                      return DropdownMenuItem(value: id, child: Text(m?.nameEn ?? id));
+                    }).toList(),
+                    onChanged: (v) => setSheetState(() => selectedSpeakerId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: commentCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Comment', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: selectedSpeakerId == null
+                        ? null
+                        : () {
+                            if (commentCtrl.text.trim().isEmpty) return;
+                            Navigator.pop(sheetContext);
+                            _addDiscussionEntry(itemIndex, selectedSpeakerId!, commentCtrl.text.trim());
+                          },
+                    child: const Text('Add'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _openAddDecisionSheet(int itemIndex) {
+    String? selectedApproverId;
+    final decisionCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: 16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Add Decision', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: decisionCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Decision', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedApproverId,
+                    decoration: const InputDecoration(labelText: 'Approved By', border: OutlineInputBorder()),
+                    items: _meeting.invitedMemberIds.map((id) {
+                      final m = MockMembers.findById(id);
+                      return DropdownMenuItem(value: id, child: Text(m?.nameEn ?? id));
+                    }).toList(),
+                    onChanged: (v) => setSheetState(() => selectedApproverId = v),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: selectedApproverId == null
+                        ? null
+                        : () {
+                            if (decisionCtrl.text.trim().isEmpty) return;
+                            Navigator.pop(sheetContext);
+                            _addDecisionEntry(itemIndex, decisionCtrl.text.trim(), selectedApproverId!);
+                          },
+                    child: const Text('Add'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

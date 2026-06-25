@@ -94,8 +94,8 @@ class _DutiesScreenState extends State<DutiesScreen> {
           Column(
             children: [
               if (!canCreate)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: RequestAccessLink(featureName: 'Duties — Create/Edit/Cancel/Delete'),
                 ),
               _buildSearchBar(auth),
@@ -247,7 +247,7 @@ class _DutiesScreenState extends State<DutiesScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.event_busy, size: 48, color: AppColors.grey50),
+          const Icon(Icons.event_busy, size: 48, color: AppColors.grey50),
           const SizedBox(height: 12),
           Text(
             auth.tr('No duties found', 'မည်သည့်တာဝန်မှ တွေ့မရှိပါ'),
@@ -339,11 +339,11 @@ class _DutyCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today, size: 12, color: AppColors.grey500),
+                        const Icon(Icons.calendar_today, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Text(AppFormatters.date(duty.date), style: AppTextStyles.labelSmall),
                         const SizedBox(width: 10),
-                        Icon(Icons.access_time, size: 12, color: AppColors.grey500),
+                        const Icon(Icons.access_time, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Text(duty.startTimeDisplay, style: AppTextStyles.labelSmall),
                       ],
@@ -351,7 +351,7 @@ class _DutyCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 12, color: AppColors.grey500),
+                        const Icon(Icons.location_on_outlined, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(duty.location, style: AppTextStyles.labelSmall, overflow: TextOverflow.ellipsis),

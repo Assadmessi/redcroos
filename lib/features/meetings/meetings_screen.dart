@@ -97,8 +97,8 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
           Column(
             children: [
               if (!canCreate)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: RequestAccessLink(featureName: 'Meetings — Create for Unit'),
                 ),
               _buildSearchBar(auth),
@@ -255,7 +255,7 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.event_note_outlined, size: 48, color: AppColors.grey50),
+          const Icon(Icons.event_note_outlined, size: 48, color: AppColors.grey50),
           const SizedBox(height: 12),
           Text(
             auth.tr('No meetings found', 'မည်သည့်အစည်းအဝေးမှ တွေ့မရှိပါ'),
@@ -345,11 +345,11 @@ class _MeetingCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today, size: 12, color: AppColors.grey500),
+                        const Icon(Icons.calendar_today, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Text(AppFormatters.date(meeting.date), style: AppTextStyles.labelSmall),
                         const SizedBox(width: 10),
-                        Icon(Icons.access_time, size: 12, color: AppColors.grey500),
+                        const Icon(Icons.access_time, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Text(meeting.timeDisplay, style: AppTextStyles.labelSmall),
                       ],
@@ -357,7 +357,7 @@ class _MeetingCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 12, color: AppColors.grey500),
+                        const Icon(Icons.location_on_outlined, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(meeting.location, style: AppTextStyles.labelSmall, overflow: TextOverflow.ellipsis),

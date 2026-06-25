@@ -151,18 +151,37 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
   // ─────────────────────────────────────────────────────────────
   // LIST VIEW — grouped by status, for a selected date
   // ─────────────────────────────────────────────────────────────
-  Widget _buildListView(List<Member> members, AuthProvider auth) {
-    final available = <Member>[];
-    final notAvailable = <Member>[];
-    final onLeave = <Member>[];
+  // Expansion state for the hierarchical tree — tracked by a unique
+  // key per node (e.g. 'brigade', 'company_1', 'company_1_platoon_2',
+  // 'company_1_platoon_2_section_1') so each level's expand/collapse
+  // is independent.
+  final Set<String> _expandedNodes = {};
 
-    for (final m in members) {
-      switch (_statusOn(m, _selectedDate)) {
-        case DayAvailabilityStatus.available: available.add(m);
-        case DayAvailabilityStatus.notAvailable: notAvailable.add(m);
-        case DayAvailabilityStatus.onLeave: onLeave.add(m);
+  void _toggleNode(String key) {
+    setState(() {
+      if (_expandedNodes.contains(key)) {
+        _expandedNodes.remove(key);
+      } else {
+        _expandedNodes.add(key);
       }
-    }
+    });
+  }
+
+  Widget _buildListView(List<Member> members, AuthProvider auth) {
+    // Only available members appear anywhere in this tree — not
+    // available / on leave members are excluded entirely, per the
+    // locked requirement (this view answers "who can I actually
+    // call on right now", not a general roster).
+    final availableMembers =
+        members.where((m) => _statusOn(m, _selectedDate) == DayAvailabilityStatus.available).toList();
+
+    final brigadeOffice = availableMembers.where((m) => m.unitType == UnitType.brigadeOffice).toList();
+    final companyNumbers = availableMembers
+        .where((m) => m.companyNo != null)
+        .map((m) => m.companyNo!)
+        .toSet()
+        .toList()
+      ..sort();
 
     return Column(
       children: [
@@ -171,13 +190,192 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: [
-              _listSection('Available', available, Colors.green, auth),
-              _listSection('Not Available', notAvailable, Colors.orange, auth),
-              _listSection('On Leave', onLeave, Colors.blueGrey, auth),
+              if (brigadeOffice.isNotEmpty) _buildBrigadeOfficeNode(brigadeOffice),
+              ...companyNumbers.map((companyNo) => _buildCompanyNode(
+                    companyNo,
+                    availableMembers.where((m) => m.companyNo == companyNo).toList(),
+                  )),
+              if (brigadeOffice.isEmpty && companyNumbers.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Text(
+                      'No one available on ${AppFormatters.date(_selectedDate)}.',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.grey500),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBrigadeOfficeNode(List<Member> members) {
+    const key = 'brigade';
+    final isExpanded = _expandedNodes.contains(key);
+    return Column(
+      children: [
+        _treeHeader(
+          label: 'Brigade Office',
+          count: members.length,
+          isExpanded: isExpanded,
+          onTap: () => _toggleNode(key),
+          indent: 0,
+        ),
+        if (isExpanded) ...members.map((m) => _memberRow(m, indent: 1)),
+      ],
+    );
+  }
+
+  Widget _buildCompanyNode(int companyNo, List<Member> companyMembers) {
+    final key = 'company_$companyNo';
+    final isExpanded = _expandedNodes.contains(key);
+
+    // Company Office members (Commander, Deputy, Sgt Major) show
+    // directly under the company header once expanded.
+    final officeMembers = companyMembers.where((m) => m.platoonNo == null).toList();
+    final platoonNumbers = companyMembers
+        .where((m) => m.platoonNo != null)
+        .map((m) => m.platoonNo!)
+        .toSet()
+        .toList()
+      ..sort();
+
+    return Column(
+      children: [
+        _treeHeader(
+          label: 'Company $companyNo',
+          count: companyMembers.length,
+          isExpanded: isExpanded,
+          onTap: () => _toggleNode(key),
+          indent: 0,
+        ),
+        if (isExpanded) ...[
+          ...officeMembers.map((m) => _memberRow(m, indent: 1)),
+          ...platoonNumbers.map((platoonNo) => _buildPlatoonNode(
+                companyNo,
+                platoonNo,
+                companyMembers.where((m) => m.platoonNo == platoonNo).toList(),
+              )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPlatoonNode(int companyNo, int platoonNo, List<Member> platoonMembers) {
+    final key = 'company_${companyNo}_platoon_$platoonNo';
+    final isExpanded = _expandedNodes.contains(key);
+
+    // Platoon Office members (Platoon Leader, Platoon Sergeant) show
+    // directly under the platoon header once expanded.
+    final officeMembers = platoonMembers.where((m) => m.sectionNo == null).toList();
+    final sectionNumbers = platoonMembers
+        .where((m) => m.sectionNo != null)
+        .map((m) => m.sectionNo!)
+        .toSet()
+        .toList()
+      ..sort();
+
+    return Column(
+      children: [
+        _treeHeader(
+          label: 'Platoon $platoonNo',
+          count: platoonMembers.length,
+          isExpanded: isExpanded,
+          onTap: () => _toggleNode(key),
+          indent: 1,
+        ),
+        if (isExpanded) ...[
+          ...officeMembers.map((m) => _memberRow(m, indent: 2)),
+          ...sectionNumbers.map((sectionNo) => _buildSectionNode(
+                companyNo,
+                platoonNo,
+                sectionNo,
+                platoonMembers.where((m) => m.sectionNo == sectionNo).toList(),
+              )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSectionNode(int companyNo, int platoonNo, int sectionNo, List<Member> sectionMembers) {
+    final key = 'company_${companyNo}_platoon_${platoonNo}_section_$sectionNo';
+    final isExpanded = _expandedNodes.contains(key);
+
+    return Column(
+      children: [
+        _treeHeader(
+          label: 'Section $sectionNo',
+          count: sectionMembers.length,
+          isExpanded: isExpanded,
+          onTap: () => _toggleNode(key),
+          indent: 2,
+        ),
+        if (isExpanded) ...sectionMembers.map((m) => _memberRow(m, indent: 3)),
+      ],
+    );
+  }
+
+  Widget _treeHeader({
+    required String label,
+    required int count,
+    required bool isExpanded,
+    required VoidCallback onTap,
+    required int indent,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16.0 + indent * 20, 10, 16, 10),
+        child: Row(
+          children: [
+            Icon(
+              isExpanded ? Icons.expand_more : Icons.chevron_right,
+              size: 20,
+              color: AppColors.grey700,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '$label ($count available)',
+                style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _memberRow(Member m, {required int indent}) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.0 + indent * 20, 4, 16, 4),
+      child: Row(
+        children: [
+          Container(
+            width: 8, height: 8,
+            decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: AvatarColorGen.fromString(m.id),
+            child: Text(m.initials, style: const TextStyle(color: Colors.white, fontSize: 10)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(m.nameEn, style: AppTextStyles.bodyMedium),
+                Text(m.rankNameEn, style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -216,45 +414,6 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _listSection(String title, List<Member> members, Color color, AuthProvider auth) {
-    if (members.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(
-            children: [
-              Container(
-                width: 10, height: 10,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 6),
-              Text('$title (${members.length})', style: AppTextStyles.headingSmall),
-            ],
-          ),
-        ),
-        ...members.map((m) => ListTile(
-              dense: true,
-              leading: CircleAvatar(
-                radius: 18,
-                backgroundColor: AvatarColorGen.fromString(m.id),
-                child: Text(m.initials,
-                    style: const TextStyle(color: Colors.white, fontSize: 12)),
-              ),
-              title: Text(m.nameEn),
-              subtitle: Text(m.rankNameEn, style: AppTextStyles.labelSmall),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MyAvailabilityPage(memberId: m.id),
-                ),
-              ),
-            )),
-      ],
     );
   }
 
@@ -560,7 +719,7 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.date_range, size: 18, color: AppColors.primary),
+                  Icon(Icons.date_range, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -871,7 +1030,7 @@ class _UnitAvailabilityScreenState extends State<UnitAvailabilityScreen> {
       return (available, notAvailable, onLeave);
     }).toList();
 
-    final maxCount = members.isEmpty ? 1 : members.length;
+    final maxCount = members.length == 0 ? 1 : members.length;
     final isCompact = days.length > 10;
 
     return Column(

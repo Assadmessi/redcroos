@@ -228,9 +228,25 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       );
       return;
     }
+    final stillAvailable = auth.availableMeetingTypes.contains(_type) ||
+        (_isEdit && widget.meeting!.type == _type);
+    if (!stillAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_typeLabel(_type)} meetings are no longer available — please choose a different type')),
+      );
+      return;
+    }
     if (!auth.canCreateMeetingForUnit(_targetCompanyNo)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You do not have permission to create a meeting for this unit')),
+      );
+      return;
+    }
+
+    final meaningfulAgendaItems = _agendaItems.where((a) => a.topic.trim().isNotEmpty).toList();
+    if (meaningfulAgendaItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one agenda item')),
       );
       return;
     }
@@ -275,9 +291,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       meetingYear: meetingYear,
       organizerMemberId: widget.meeting?.organizerMemberId ?? auth.currentMember?.id,
       recorderMemberId: widget.meeting?.recorderMemberId,
-      agendaItems: _agendaItems
-          .where((a) => a.topic.trim().isNotEmpty)
-          .toList(),
+      agendaItems: meaningfulAgendaItems,
     );
 
     if (_isEdit) {
@@ -318,7 +332,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
             _sectionCard('Meeting Details', [
               _textField(_titleCtrl, 'Title (English)', required: true),
               _textField(_titleMmCtrl, 'Title (Myanmar)'),
-              _typeDropdown(),
+              _typeDropdown(auth),
               if (isBrigadeWide) _unitScopeDropdown(),
             ]),
             _sectionCard('Schedule', [
@@ -463,19 +477,47 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     );
   }
 
-  Widget _typeDropdown() {
-    return DropdownButtonFormField<MeetingType>(
-      initialValue: _type,
-      decoration: const InputDecoration(labelText: 'Meeting Type', border: OutlineInputBorder()),
-      items: MeetingType.values
-          .map((t) => DropdownMenuItem(value: t, child: Text(_typeLabel(t))))
-          .toList(),
-      onChanged: (v) {
-        setState(() => _type = v!);
-        _pullForwardPendingTasks();
-      },
+  Widget _typeDropdown(AuthProvider auth) {
+  final available = auth.availableMeetingTypes;
+
+  final List<MeetingType> items = {
+    ...available,
+    if (_isEdit) _type,
+  }.toList()
+    ..sort((a, b) => a.index.compareTo(b.index));
+
+  if (items.isEmpty) {
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Meeting Type',
+        border: OutlineInputBorder(),
+      ),
+      child: Text(
+        'No meeting types are currently available to you.',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey500),
+      ),
     );
   }
+
+  return DropdownButtonFormField<MeetingType>(
+    initialValue: items.contains(_type) ? _type : items.first,
+    decoration: const InputDecoration(
+      labelText: 'Meeting Type',
+      border: OutlineInputBorder(),
+    ),
+    items: items
+        .map((MeetingType t) => DropdownMenuItem<MeetingType>(
+              value: t,
+              child: Text(_typeLabel(t)),
+            ))
+        .toList(),
+    onChanged: (MeetingType? v) {
+      if (v == null) return;
+      setState(() => _type = v);
+      _pullForwardPendingTasks();
+    },
+  );
+}
 
   String _typeLabel(MeetingType type) => switch (type) {
         MeetingType.general => 'General',

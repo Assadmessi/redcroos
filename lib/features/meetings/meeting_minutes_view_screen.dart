@@ -127,20 +127,72 @@ class MeetingMinutesViewScreen extends StatelessWidget {
                         child: Text('Presented by ${presenter.nameEn}',
                             style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500)),
                       ),
-                    if (item.discussion != null && item.discussion!.isNotEmpty) ...[
+                    if (item.hasDiscussion) ...[
                       const SizedBox(height: 6),
                       Text('Discussion:', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.bold)),
-                      Text(item.discussion!, style: AppTextStyles.bodySmall),
+                      if (item.discussion != null && item.discussion!.isNotEmpty)
+                        Text(item.discussion!, style: AppTextStyles.bodySmall),
+                      ...item.discussionEntries.map((e) {
+                        final speaker = MockMembers.findById(e.speakerMemberId);
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '${speaker?.nameEn ?? e.speakerMemberId}: ${e.comment}',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        );
+                      }),
                     ],
                     if (item.hasDecision) ...[
                       const SizedBox(height: 6),
                       Text('Decision:', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.bold)),
-                      Text(item.decision!, style: AppTextStyles.bodySmall),
+                      if (item.decision != null && item.decision!.isNotEmpty)
+                        Text(item.decision!, style: AppTextStyles.bodySmall),
+                      ...item.decisions.map((d) {
+                        final approver = MockMembers.findById(d.approvedByMemberId);
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '${d.decisionText} — approved by ${approver?.nameEn ?? d.approvedByMemberId}',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        );
+                      }),
                     ],
                   ],
                 ),
               );
             }),
+
+          if (meeting.allDiscussionEntries.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _sectionHeading('Discussion Summary'),
+            ...meeting.allDiscussionEntries.map((pair) {
+              final speaker = MockMembers.findById(pair.entry.speakerMemberId);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Text(
+                  '${speaker?.nameEn ?? pair.entry.speakerMemberId} (on "${pair.item.topic}"): ${pair.entry.comment}',
+                  style: AppTextStyles.bodySmall,
+                ),
+              );
+            }),
+          ],
+
+          if (meeting.allDecisions.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _sectionHeading('Decisions Summary'),
+            ...meeting.allDecisions.map((pair) {
+              final approver = MockMembers.findById(pair.decision.approvedByMemberId);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Text(
+                  '${pair.decision.decisionText} (on "${pair.item.topic}") — approved by ${approver?.nameEn ?? pair.decision.approvedByMemberId}',
+                  style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                ),
+              );
+            }),
+          ],
 
           if (meeting.minutes != null && meeting.minutes!.isNotEmpty) ...[
             const SizedBox(height: 20),

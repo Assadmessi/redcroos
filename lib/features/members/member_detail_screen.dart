@@ -428,7 +428,7 @@ class _RestrictedTabState extends State<_RestrictedTab> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.lock_outline, size: 18, color: AppColors.grey500),
+                    const Icon(Icons.lock_outline, size: 18, color: AppColors.grey500),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
