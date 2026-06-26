@@ -127,30 +127,20 @@ class _ClosureReportEditRequestsScreenState extends State<ClosureReportEditReque
     final auth = context.watch<AuthProvider>();
     final pending = MockClosureReportEditRequests.pending();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text('Closure Report Edit Requests', style: AppTextStyles.headingMedium),
-          ),
-        ),
-        Expanded(
-          child: pending.isEmpty
-              ? Center(
-                  child: Text(
-                    'No pending edit requests.',
-                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.grey500),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: pending.length,
-                  itemBuilder: (context, index) => _requestCard(pending[index], auth),
-                ),
-        ),
-      ],
+    return Scaffold(
+      appBar: AppBar(title: const Text('Closure Report Edit Requests')),
+      body: pending.isEmpty
+          ? Center(
+              child: Text(
+                'No pending edit requests.',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.grey500),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: pending.length,
+              itemBuilder: (context, index) => _requestCard(pending[index], auth),
+            ),
     );
   }
 

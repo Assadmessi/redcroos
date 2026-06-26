@@ -157,13 +157,13 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canCreateClassForUnit(_currentMember!, targetCompanyNo);
 
-  bool canManageClass(int? classCompanyNo, ClassStatus classStatus) =>
+  bool canManageClass(int? classCompanyNo, ClassStatus classStatus, DateTime classStartDate) =>
       _currentMember != null &&
-      PermissionService.canManageClass(_currentMember!, classCompanyNo, classStatus);
+      PermissionService.canManageClass(_currentMember!, classCompanyNo, classStatus, classStartDate);
 
-  bool canApproveEnrollment(int? classCompanyNo, ClassStatus classStatus) =>
+  bool canApproveEnrollment(int? classCompanyNo, ClassStatus classStatus, DateTime classStartDate) =>
       _currentMember != null &&
-      PermissionService.canApproveEnrollment(_currentMember!, classCompanyNo, classStatus);
+      PermissionService.canApproveEnrollment(_currentMember!, classCompanyNo, classStatus, classStartDate);
 
   bool canSubmitFeedback(List<String> enrolledMemberIds) =>
       _currentMember != null &&

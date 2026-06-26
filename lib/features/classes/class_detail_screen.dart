@@ -263,7 +263,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final me = auth.currentMember;
-    final canManage = auth.canManageClass(_classCompanyNo, _trainingClass.status);
+    final canManage = auth.canManageClass(_classCompanyNo, _trainingClass.status, _trainingClass.startDate);
     final canPrepareClosureReport = auth.canPrepareClosureReport(_classCompanyNo);
     final isEnrolled = me != null && _trainingClass.enrolledMemberIds.contains(me.id);
     final hasPendingRequest = me != null &&
@@ -653,7 +653,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                           ],
                         ),
                       ),
-                      if (auth.canManageClass(_classCompanyNo, _trainingClass.status))
+                      if (auth.canManageClass(_classCompanyNo, _trainingClass.status, _trainingClass.startDate))
                         TextButton(
                           onPressed: () => _openAttendanceSheet(session),
                           child: const Text('Attendance'),

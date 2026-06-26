@@ -261,7 +261,7 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
     setState(() => _feedbackQuestions.removeAt(index));
   }
 
-  void _save(AuthProvider auth) {
+  void _save(AuthProvider auth, {bool publish = false}) {
     if (!_formKey.currentState!.validate()) return;
     if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -360,7 +360,7 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
       location: _locationCtrl.text.trim(),
       maxParticipants: maxParticipants,
       enrolledMemberIds: enrolledMemberIds,
-      status: widget.trainingClass?.status ?? ClassStatus.draft,
+      status: widget.trainingClass?.status ?? (publish ? ClassStatus.open : ClassStatus.draft),
       requiredSkillIds: _requiredSkillIds.toList(),
       awardedSkillIds: _awardedSkillIds.toList(),
       issuesCertificate: _issuesCertificate,
@@ -381,7 +381,9 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_isEdit ? 'Class updated' : 'Class created')),
+      SnackBar(content: Text(_isEdit
+          ? 'Class updated'
+          : (publish ? 'Class created and published' : 'Class saved as draft'))),
     );
     Navigator.pop(context, true);
   }
@@ -395,7 +397,10 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
         actions: [
           TextButton(
             onPressed: () => _save(auth),
-            child: const Text('SAVE', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            child: Text(
+              _isEdit ? 'SAVE' : 'SAVE DRAFT',
+              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -544,11 +549,25 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
               ),
             ]),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => _save(auth),
-              style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-              child: Text(_isEdit ? 'Save Changes' : 'Create Class'),
-            ),
+            if (_isEdit)
+              ElevatedButton(
+                onPressed: () => _save(auth),
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                child: const Text('Save Changes'),
+              )
+            else ...[
+              ElevatedButton(
+                onPressed: () => _save(auth, publish: true),
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                child: const Text('Create & Publish'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () => _save(auth),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                child: const Text('Save as Draft'),
+              ),
+            ],
             const SizedBox(height: 24),
           ],
         ),

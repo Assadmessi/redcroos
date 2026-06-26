@@ -940,14 +940,26 @@ class PermissionService {
 
   /// Can `member` edit/cancel a class, manage its committee/budget,
   /// or directly add/remove enrolled members? Same authority as
-  /// creating it — EXCEPT once the class is completed/archived,
-  /// which freezes it completely. There is no request/unlock path
-  /// for the class data itself — only the Closure Report has one
-  /// (see canEditClosureReportSection below).
-  static bool canManageClass(Member member, int? classCompanyNo, ClassStatus classStatus) {
-    if (classStatus == ClassStatus.completed || classStatus == ClassStatus.archived) {
-      return false;
-    }
+  /// creating it — EXCEPT once the class is frozen, which happens
+  /// when EITHER of these becomes true (whichever happens first):
+  ///   - status is ongoing/completed/archived, OR
+  ///   - today's date is on or after the class's startDate
+  /// There is no request/unlock path for the class data itself once
+  /// frozen — only the Closure Report has one (see
+  /// canEditClosureReportSection below).
+  static bool canManageClass(
+    Member member,
+    int? classCompanyNo,
+    ClassStatus classStatus,
+    DateTime classStartDate,
+  ) {
+    final statusFrozen = classStatus == ClassStatus.ongoing ||
+        classStatus == ClassStatus.completed ||
+        classStatus == ClassStatus.archived;
+    final dateFrozen = !DateTime.now().isBefore(
+      DateTime(classStartDate.year, classStartDate.month, classStartDate.day),
+    );
+    if (statusFrozen || dateFrozen) return false;
     return canCreateClassForUnit(member, classCompanyNo);
   }
 
@@ -1000,8 +1012,13 @@ class PermissionService {
   /// chain isn't separately modeled yet, so this reuses the class
   /// management tier. Freezes along with the class once finished,
   /// same as everything else covered by canManageClass.
-  static bool canApproveEnrollment(Member member, int? classCompanyNo, ClassStatus classStatus) {
-    return canManageClass(member, classCompanyNo, classStatus);
+  static bool canApproveEnrollment(
+    Member member,
+    int? classCompanyNo,
+    ClassStatus classStatus,
+    DateTime classStartDate,
+  ) {
+    return canManageClass(member, classCompanyNo, classStatus, classStartDate);
   }
 
   /// Can `member` submit feedback for a class? Only members who were

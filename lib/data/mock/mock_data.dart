@@ -1965,6 +1965,21 @@ class MockMeetings {
               DecisionEntry(id: 'dec3', decisionText: 'U Pyae Phyo Aung to confirm a recommendation before the next meeting.', approvedByMemberId: 'm101'),
             ],
           ),
+          AgendaItem(
+            id: 'agenda2_3', meetingId: 'meeting2', order: 3,
+            topic: 'First Aid Level 3 — Company 1 Attendance Authorization',
+            presenterMemberId: 'm101',
+            discussionEntries: const [
+              DiscussionEntry(id: 'disc6', speakerMemberId: 'm101', comment: 'HQ is offering a First Aid Level 3 course next quarter — proposing we send our eligible Level 2 holders.'),
+            ],
+            decisions: const [
+              DecisionEntry(
+                id: 'dec4',
+                decisionText: 'Company 1 to submit a nomination list of eligible members for the First Aid Level 3 class once scheduled.',
+                approvedByMemberId: 'm101',
+              ),
+            ],
+          ),
         ],
         minutes: 'Meeting opened on time with quorum present. Equipment inventory and the Platoon 2 vacancy were the main discussion items. Two action items assigned, see tasks.',
       ),
@@ -2147,20 +2162,121 @@ class MockCommittees {
 // MOCK PUNISHMENTS — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockPunishments {
-  static final List<Punishment> all = [];
+  static final List<Punishment> all = _seedPunishments();
 
-  static List<Punishment> forMember(String memberId) => [];
+  static List<Punishment> _seedPunishments() {
+    final now = DateTime.now();
+    return [
+      // A standalone verbal warning, unrelated to any investigation.
+      Punishment(
+        id: 'punish1',
+        memberId: 'm119',
+        type: PunishmentType.verbalWarning,
+        description: 'Repeated late arrival to assigned duties without prior notice.',
+        issuedDate: now.subtract(const Duration(days: 45)),
+        issuedById: 'm101',
+        status: PunishmentStatus.completed,
+        isAppealable: false,
+      ),
+      // Linked to inv1, the seeded ongoing investigation — shows the
+      // investigationId connection and an active suspension that's
+      // still appealable.
+      Punishment(
+        id: 'punish2',
+        memberId: 'm119',
+        type: PunishmentType.suspension,
+        description: 'Suspended from duty roster pending outcome of conduct review INV-2026-01.',
+        issuedDate: now.subtract(const Duration(days: 8)),
+        endDate: now.add(const Duration(days: 22)),
+        issuedById: 'm2',
+        status: PunishmentStatus.active,
+        investigationId: 'inv1',
+        isAppealable: true,
+      ),
+    ];
+  }
+
+  static List<Punishment> forMember(String memberId) {
+    return all.where((p) => p.memberId == memberId).toList();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MOCK BLOOD DONORS — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockBloodDonors {
-  static final List<BloodDonor> all = [];
+  static final List<BloodDonor> all = _seedDonors();
 
-  static BloodDonor? findById(String id) => null;
+  static List<BloodDonor> _seedDonors() {
+    final now = DateTime.now();
+    return [
+      BloodDonor(
+        id: 'donor1',
+        nameEn: 'Ko Wai Phyo Paing',
+        type: DonorType.internal,
+        memberId: 'm106',
+        bloodType: BloodType.OP,
+        lastDonationDate: now.subtract(const Duration(days: 70)),
+        totalDonations: 4,
+        phone: '+973 3300 1106',
+        isActive: true,
+      ),
+      BloodDonor(
+        id: 'donor2',
+        nameEn: 'U Aung Wai Htun',
+        type: DonorType.internal,
+        memberId: 'm102',
+        bloodType: BloodType.AP,
+        lastDonationDate: now.subtract(const Duration(days: 130)),
+        totalDonations: 9,
+        phone: '+973 3300 1102',
+        isActive: true,
+      ),
+      BloodDonor(
+        id: 'donor3',
+        nameEn: 'Daw Khin Hnin Yee',
+        type: DonorType.external,
+        bloodType: BloodType.OM,
+        lastDonationDate: now.subtract(const Duration(days: 200)),
+        totalDonations: 2,
+        phone: '+973 3399 8821',
+        isActive: true,
+      ),
+      BloodDonor(
+        id: 'donor4',
+        nameEn: 'Ko Min Thu',
+        type: DonorType.external,
+        bloodType: BloodType.BP,
+        lastDonationDate: null, // never donated yet, but registered as eligible
+        totalDonations: 0,
+        phone: '+973 3399 4471',
+        isActive: true,
+      ),
+      BloodDonor(
+        id: 'donor5',
+        nameEn: 'Ko Aung Bhone Khant',
+        type: DonorType.internal,
+        memberId: 'm107',
+        bloodType: BloodType.ABP,
+        lastDonationDate: now.subtract(const Duration(days: 40)),
+        totalDonations: 6,
+        phone: '+973 3300 1107',
+        isActive: false, // recently donated, in cooldown — not currently eligible
+      ),
+    ];
+  }
 
-  static List<BloodDonor> eligibleByBloodType(BloodType type) => [];
+  static BloodDonor? findById(String id) {
+    try {
+      return all.firstWhere((d) => d.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static List<BloodDonor> eligibleByBloodType(BloodType type) {
+    return all.where((d) => d.bloodType == type && d.isActive).toList();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2169,7 +2285,56 @@ class MockBloodDonors {
 class MockNotifications {
   // In-memory store — resets on app restart, replaced by Supabase in
   // Module 16.
-  static final List<AppNotification> all = [];
+  static final List<AppNotification> all = _seedNotifications();
+
+  static List<AppNotification> _seedNotifications() {
+    final now = DateTime.now();
+    return [
+      AppNotification(
+        id: 'notif1',
+        recipientId: 'm105',
+        title: 'Enrollment request sent',
+        body: 'Your request to join "First Aid Level 2 Refresher" is pending instructor approval.',
+        type: NotificationType.classEvent,
+        priority: NotificationPriority.normal,
+        isRead: false,
+        createdAt: now.subtract(const Duration(days: 2)),
+        routeTo: 'class1',
+      ),
+      AppNotification(
+        id: 'notif2',
+        recipientId: 'm101',
+        title: 'New join request',
+        body: 'Ko Aung Nanda requested to join "First Aid Level 2 Refresher".',
+        type: NotificationType.classEvent,
+        priority: NotificationPriority.normal,
+        isRead: false,
+        createdAt: now.subtract(const Duration(days: 2)),
+        routeTo: 'class1',
+      ),
+      AppNotification(
+        id: 'notif3',
+        recipientId: 'm106',
+        title: 'Quarterly Officer Meeting reminder',
+        body: 'The Quarterly Officer Meeting is coming up — check the agenda before attending.',
+        type: NotificationType.meeting,
+        priority: NotificationPriority.high,
+        isRead: true,
+        createdAt: now.subtract(const Duration(days: 1)),
+        routeTo: 'meeting1',
+      ),
+      AppNotification(
+        id: 'notif4',
+        recipientId: 'm2',
+        title: 'Closure report edit request',
+        body: 'A request to edit the locked closure report for "Disaster Management Fundamentals" is awaiting your review.',
+        type: NotificationType.system,
+        priority: NotificationPriority.normal,
+        isRead: false,
+        createdAt: now.subtract(const Duration(days: 1)),
+      ),
+    ];
+  }
 
   static List<AppNotification> forMember(String memberId) {
     return all.where((n) => n.recipientId == memberId).toList()
@@ -2595,7 +2760,24 @@ class MockClasses {
 // MOCK ENROLLMENT REQUESTS
 // ═══════════════════════════════════════════════════════════════
 class MockEnrollmentRequests {
-  static final List<EnrollmentRequest> all = [];
+  static final List<EnrollmentRequest> all = _seedRequests();
+
+  static List<EnrollmentRequest> _seedRequests() {
+    final now = DateTime.now();
+    return [
+      // m105 (Private, Company 1) requesting to join class1 (First
+      // Aid Level 2 Refresher) — not yet enrolled, not already
+      // certified — tests the Manage Enrollment approve/deny flow.
+      EnrollmentRequest(
+        id: 'enroll1',
+        classId: 'class1',
+        memberId: 'm105',
+        reason: 'Want to refresh my certification before it expires next month.',
+        status: EnrollmentRequestStatus.pending,
+        requestedAt: now.subtract(const Duration(days: 2)),
+      ),
+    ];
+  }
 
   static void add(EnrollmentRequest request) {
     all.add(request);
@@ -2686,7 +2868,41 @@ class MockSessionAttendance {
 }
 
 class MockClassFeedback {
-  static final List<ClassFeedback> all = [];
+  static final List<ClassFeedback> all = _seedFeedback();
+
+  static List<ClassFeedback> _seedFeedback() {
+    final now = DateTime.now();
+    return [
+      // m103 — submitted, named (not anonymous)
+      ClassFeedback(
+        id: 'feedback1',
+        classId: 'class2',
+        memberId: 'm103',
+        answers: const [
+          FeedbackAnswer(questionId: 'fq1', ratingValue: 5),
+          FeedbackAnswer(questionId: 'fq2', ratingValue: 4),
+          FeedbackAnswer(questionId: 'fq3', textValue: 'More hands-on drills for disaster scenarios would help.'),
+        ],
+        submittedAt: now.subtract(const Duration(days: 25)),
+      ),
+      // m302 — submitted anonymously, tests the isAnonymous flag
+      ClassFeedback(
+        id: 'feedback2',
+        classId: 'class2',
+        memberId: 'm302',
+        answers: const [
+          FeedbackAnswer(questionId: 'fq1', ratingValue: 4),
+          FeedbackAnswer(questionId: 'fq2', ratingValue: 5),
+          FeedbackAnswer(questionId: 'fq3', textValue: 'Would like a refresher session closer to actual deployment dates.'),
+        ],
+        submittedAt: now.subtract(const Duration(days: 24)),
+        isAnonymous: true,
+      ),
+      // m101 and m304 deliberately have NOT submitted yet — tests
+      // that hasSubmitted correctly returns false for them and the
+      // "Give Feedback" button still shows.
+    ];
+  }
 
   static void add(ClassFeedback feedback) {
     all.add(feedback);
@@ -2707,7 +2923,42 @@ class MockClassFeedback {
 // on app restart, replaced by Supabase in Module 16.
 // ═══════════════════════════════════════════════════════════════
 class MockClosureReports {
-  static final List<ClassClosureReport> all = [];
+  static final List<ClassClosureReport> all = _seedReports();
+
+  static List<ClassClosureReport> _seedReports() {
+    final now = DateTime.now();
+    return [
+      // class2 (Disaster Management Fundamentals, completed 28 days
+      // ago) — deadline already passed 14 days ago, so this report
+      // shows the LOCKED state by default, demonstrating the
+      // request-edit-access flow without any extra setup.
+      ClassClosureReport(
+        id: 'closure1',
+        classId: 'class2',
+        preparedByMemberId: 'm2',
+        preparedAt: now.subtract(const Duration(days: 27)),
+        submissionDeadline: now.subtract(const Duration(days: 14)),
+        totalEnrolled: 4,
+        totalCompleted: 4, // all 4 attended at least one session
+        sessionAttendanceCounts: const {
+          'session2_1': 3, // m101, m103, m302 present
+          'session2_2': 3, // m101, m103, m304 present
+        },
+        memberAttendanceRates: const {
+          'm101': 1.0,
+          'm103': 1.0,
+          'm302': 0.5,
+          'm304': 0.5,
+        },
+        totalAllocated: 0,
+        totalSpent: 0,
+        skillsAwardedSummary: const ['Disaster Management'],
+        certificatesIssuedCount: 4,
+        issuesEncountered: 'Two participants missed one session each due to a scheduling clash with a duty assignment that day.',
+        recommendations: 'Check the duty roster before finalizing session dates for the next run of this class.',
+      ),
+    ];
+  }
 
   static void save(ClassClosureReport report) {
     all.removeWhere((r) => r.classId == report.classId);
@@ -2730,7 +2981,29 @@ class MockClosureReports {
 // replaced by Supabase in Module 16.
 // ═══════════════════════════════════════════════════════════════
 class MockClosureReportEditRequests {
-  static final List<ClosureReportEditRequest> all = [];
+  static final List<ClosureReportEditRequest> all = _seedRequests();
+
+  static List<ClosureReportEditRequest> _seedRequests() {
+    final now = DateTime.now();
+    return [
+      // m2 requesting to fix the Issues/Recommendations text on
+      // class2's now-locked closure report (closure1) — tests the
+      // Master Access review screen and the per-section approval.
+      ClosureReportEditRequest(
+        id: 'editreq1',
+        classId: 'class2',
+        closureReportId: 'closure1',
+        requesterId: 'm2',
+        sectionsRequested: const [
+          ClosureReportSection.issuesEncountered,
+          ClosureReportSection.recommendations,
+        ],
+        reason: 'Need to correct the recommendation wording before this goes to the Brigade Office quarterly summary.',
+        status: ClosureReportEditRequestStatus.pending,
+        requestedAt: now.subtract(const Duration(days: 1)),
+      ),
+    ];
+  }
 
   static void add(ClosureReportEditRequest request) {
     all.add(request);
@@ -2772,7 +3045,30 @@ class MockClosureReportEditRequests {
 // Module 16.
 // ═══════════════════════════════════════════════════════════════
 class MockNominationLists {
-  static final List<ClassNominationList> all = [];
+  static final List<ClassNominationList> all = _seedNominationLists();
+
+  static List<ClassNominationList> _seedNominationLists() {
+    final now = DateTime.now();
+    return [
+      // Linked to meeting2's "First Aid Level 3" decision (agenda2_3
+      // / dec4) — Company 1 nominating 3 members for a class that
+      // doesn't exist yet. Submitted well before its deadline, so
+      // creating a new class titled EXACTLY "First Aid Level 3"
+      // should auto-enroll m103, m104, and m107.
+      ClassNominationList(
+        id: 'nom1',
+        linkedMeetingId: 'meeting2',
+        linkedAgendaItemId: 'agenda2_3',
+        plannedClassTitle: 'First Aid Level 3',
+        companyNo: 1,
+        nominatedMemberIds: const ['m103', 'm104', 'm107'],
+        submittedByMemberId: 'm101',
+        submittedAt: now.subtract(const Duration(days: 5)),
+        submissionDeadline: now.add(const Duration(days: 9)),
+        status: NominationListStatus.pending,
+      ),
+    ];
+  }
 
   static void add(ClassNominationList list) {
     all.add(list);
@@ -2833,7 +3129,31 @@ class MockNominationLists {
 }
 
 class MockPostTrainingReports {
-  static final List<PostTrainingReport> all = [];
+  static final List<PostTrainingReport> all = _seedReports();
+
+  static List<PostTrainingReport> _seedReports() {
+    final now = DateTime.now();
+    return [
+      // Wraps closure1 (class2) — prepared but NOT yet approved,
+      // tests the Approve Report button for Master Access/Brigade
+      // Office Chief.
+      PostTrainingReport(
+        id: 'pt1',
+        classId: 'class2',
+        closureReportId: 'closure1',
+        preparedByMemberId: 'm2',
+        preparedAt: now.subtract(const Duration(days: 20)),
+        impactAssessment: 'Strengthens the brigade\'s disaster response coordination ahead of monsoon season — all 4 participants can now support DANA assessments in the field.',
+        skillVerificationByMemberId: const {
+          'm101': true,
+          'm103': true,
+          'm302': false, // attended only 50% of sessions — not yet verified
+          'm304': false,
+        },
+        futurePlanning: 'Recommend a follow-up advanced module once the basic cohort has 3+ months of field experience.',
+      ),
+    ];
+  }
 
   static void save(PostTrainingReport report) {
     all.removeWhere((r) => r.classId == report.classId);
@@ -2897,9 +3217,43 @@ class MockCertificates {
 // MOCK TRANSFER HISTORY — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockTransferHistory {
-  static final List<TransferHistory> all = [];
+  static final List<TransferHistory> all = _seedHistory();
 
-  static List<TransferHistory> forMember(String memberId) => [];
+  static List<TransferHistory> _seedHistory() {
+    final now = DateTime.now();
+    return [
+      TransferHistory(
+        id: 'transfer1',
+        memberId: 'm106',
+        type: TransferType.promotion,
+        fromRankOrUnit: 'Platoon Sergeant',
+        toRankOrUnit: 'Company Sergeant Major',
+        date: now.subtract(const Duration(days: 400)),
+        authorizedById: 'm101',
+        reason: 'Demonstrated strong leadership during the 2025 flood response deployment.',
+      ),
+      // Linked to punish2 (the active suspension on m119) — shows
+      // the punishmentId connection between disciplinary action and
+      // a resulting transfer/demotion.
+      TransferHistory(
+        id: 'transfer2',
+        memberId: 'm119',
+        type: TransferType.demotion,
+        fromRankOrUnit: 'Section Leader',
+        toRankOrUnit: 'Private',
+        date: now.subtract(const Duration(days: 8)),
+        authorizedById: 'm2',
+        reason: 'Disciplinary action pending conduct review outcome.',
+        punishmentId: 'punish2',
+      ),
+    ];
+  }
+
+  static List<TransferHistory> forMember(String memberId) {
+    final result = all.where((t) => t.memberId == memberId).toList();
+    result.sort((a, b) => b.date.compareTo(a.date));
+    return result;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3075,7 +3429,48 @@ class MockEvents {
 // MOCK FUND ENTRIES — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockFundEntries {
-  static final List<FundEntry> all = [];
+  static final List<FundEntry> all = _seedEntries();
+
+  static List<FundEntry> _seedEntries() {
+    final now = DateTime.now();
+    return [
+      FundEntry(
+        id: 'fund1',
+        type: 'income',
+        description: 'Quarterly brigade fund allocation from Myanmar Red Cross Society HQ',
+        amount: 500000,
+        date: now.subtract(const Duration(days: 60)),
+        category: 'HQ Allocation',
+        recordedById: 'm3',
+        approvedById: 'm1',
+        needsApproval: false,
+      ),
+      FundEntry(
+        id: 'fund2',
+        type: 'expense',
+        description: 'First Aid Level 2 Refresher — materials and instructor honorarium',
+        amount: 35000,
+        date: now.subtract(const Duration(days: 2)),
+        category: 'Training',
+        recordedById: 'm106',
+        approvedById: 'm101',
+        needsApproval: false,
+        classId: 'class1',
+        referenceNo: 'FE-2026-014',
+      ),
+      FundEntry(
+        id: 'fund3',
+        type: 'expense',
+        description: 'Charity marathon first aid station supplies',
+        amount: 80000,
+        date: now.subtract(const Duration(days: 10)),
+        category: 'Event Support',
+        recordedById: 'm6',
+        needsApproval: true, // pending approval — approvedById intentionally null
+        referenceNo: 'FE-2026-015',
+      ),
+    ];
+  }
 
   static double get balance =>
       all.fold(0.0, (sum, e) => e.type == 'income' ? sum + e.amount : sum - e.amount);
@@ -3085,7 +3480,36 @@ class MockFundEntries {
 // MOCK LIBRARY DOCUMENTS — empty until real data entered via the app
 // ═══════════════════════════════════════════════════════════════
 class MockLibrary {
-  static final List<LibraryDocument> all = [];
+  static final List<LibraryDocument> all = _seedDocuments();
+
+  static List<LibraryDocument> _seedDocuments() {
+    final now = DateTime.now();
+    return [
+      LibraryDocument(
+        id: 'doc1',
+        title: 'Myanmar Red Cross Society — Brigade Operations Manual',
+        titleMm: 'မြန်မာနိုင်ငံ ကြက်ခြေနီအသင်း — တပ်ဖွဲ့လုပ်ငန်းလမ်းညွှန်',
+        category: 'Operations',
+        fileUrl: 'library/brigade_operations_manual.pdf',
+        fileType: 'pdf',
+        uploadedDate: now.subtract(const Duration(days: 300)),
+        uploadedById: 'm3',
+        isPublic: true,
+      ),
+      LibraryDocument(
+        id: 'doc2',
+        title: 'First Aid Level 2 — Course Materials',
+        titleMm: 'အသက်ဆယ်ယူ အဆင့် ၂ — သင်တန်းအထောက်အထား',
+        category: 'Training',
+        fileUrl: 'library/first_aid_level_2_materials.pdf',
+        fileType: 'pdf',
+        uploadedDate: now.subtract(const Duration(days: 6)),
+        uploadedById: 'm106',
+        classId: 'class1',
+        isPublic: false, // only visible to enrolled members
+      ),
+    ];
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3094,7 +3518,39 @@ class MockLibrary {
 // resets on app restart, replaced by Supabase in Module 16.
 // ═══════════════════════════════════════════════════════════════
 class MockAccessGrants {
-  static final List<AccessGrantRequest> all = [];
+  static final List<AccessGrantRequest> all = _seedGrants();
+
+  static List<AccessGrantRequest> _seedGrants() {
+    final now = DateTime.now();
+    return [
+      // m106 (Company Sergeant Major, C1) requesting access to
+      // m101's (Company Commander) Contact Info — pending, tests the
+      // approval screen directly.
+      AccessGrantRequest(
+        id: 'grant1',
+        requesterId: 'm106',
+        targetMemberId: 'm101',
+        requestedSections: const [ProfileSection.contactInfo],
+        reason: 'Need to reach the Commander directly during the upcoming marathon event for last-minute logistics coordination.',
+        status: AccessGrantStatus.pending,
+        requestedAt: now.subtract(const Duration(hours: 6)),
+      ),
+      // m106 already approved for Platoon Leader (m103) detail —
+      // tests the granted-section chip display on the profile screen.
+      AccessGrantRequest(
+        id: 'grant2',
+        requesterId: 'm106',
+        targetMemberId: 'm103',
+        requestedSections: const [ProfileSection.membershipHistory],
+        reason: 'Reviewing service history while preparing the quarterly readiness report.',
+        status: AccessGrantStatus.approved,
+        approverId: 'm101',
+        requestedAt: now.subtract(const Duration(days: 5)),
+        decidedAt: now.subtract(const Duration(days: 4)),
+        expiresAt: now.add(const Duration(days: 25)),
+      ),
+    ];
+  }
 
   static void add(AccessGrantRequest request) {
     all.add(request);
@@ -3148,7 +3604,36 @@ class MockAccessGrants {
 // Module 16.
 // ═══════════════════════════════════════════════════════════════
 class MockFeatureAccessRequests {
-  static final List<FeatureAccessRequest> all = [];
+  static final List<FeatureAccessRequest> all = _seedRequests();
+
+  static List<FeatureAccessRequest> _seedRequests() {
+    final now = DateTime.now();
+    return [
+      // m103 (Platoon Leader) requesting Fund Ledger access — tests
+      // the Master Access review queue.
+      FeatureAccessRequest(
+        id: 'feat1',
+        requesterId: 'm103',
+        moduleOrFeature: 'Fund Ledger',
+        reason: 'Need to verify the training budget figures before the next platoon briefing.',
+        status: FeatureAccessStatus.pending,
+        requestedAt: now.subtract(const Duration(hours: 14)),
+      ),
+      // m118 already approved for Archive access — tests the
+      // approved-state display in the requester's own list.
+      FeatureAccessRequest(
+        id: 'feat2',
+        requesterId: 'm118',
+        moduleOrFeature: 'Archive',
+        reason: 'Researching past charity marathon planning documents for this year\'s event.',
+        status: FeatureAccessStatus.approved,
+        approverId: 'm1',
+        requestedAt: now.subtract(const Duration(days: 10)),
+        decidedAt: now.subtract(const Duration(days: 9)),
+        expiresAt: now.add(const Duration(days: 20)),
+      ),
+    ];
+  }
 
   static void add(FeatureAccessRequest request) {
     all.add(request);
