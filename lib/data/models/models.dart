@@ -534,6 +534,11 @@ class Duty {
   String get startTimeDisplay =>
       '${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')}';
 
+  /// The duty's scheduled date + start time combined into a single
+  /// DateTime — used for the "join up until 1 day before" cutoff.
+  DateTime get scheduledDateTime =>
+      DateTime(date.year, date.month, date.day, startHour, startMinute);
+
   List<DutyMember> get officers =>
       members.where((m) => m.roleInDuty == DutyRoleInDuty.officer).toList();
 
@@ -904,6 +909,20 @@ class Meeting {
 
   String get timeDisplay =>
       '${timeHour.toString().padLeft(2, '0')}:${timeMinute.toString().padLeft(2, '0')}';
+
+  /// The meeting's scheduled date + time combined into a single
+  /// DateTime — always reflects whatever `date`/`timeHour`/
+  /// `timeMinute` currently hold, so if the meeting gets
+  /// rescheduled this automatically reflects the new time.
+  DateTime get scheduledDateTime =>
+      DateTime(date.year, date.month, date.day, timeHour, timeMinute);
+
+  /// Whether the meeting can be started yet — true once we're
+  /// within 1 minute of the scheduled start time (or past it).
+  /// Prevents starting a scheduled meeting early; if the meeting is
+  /// rescheduled, this is based on the new scheduledDateTime.
+  bool get canStartNow =>
+      !DateTime.now().isBefore(scheduledDateTime.subtract(const Duration(minutes: 1)));
 
   String get typeDisplay {
     switch (type) {
@@ -1772,7 +1791,7 @@ class EventRoute {
 // picks which sections to unlock and an expiry date when approving.
 // ═══════════════════════════════════════════════════════════════
 
-enum ProfileSection { personalDetails, contactInfo, membershipHistory, analytics }
+enum ProfileSection { personalDetails, contactInfo, membershipHistory, analytics, skills }
 
 extension ProfileSectionDisplay on ProfileSection {
   String get label {
@@ -1781,6 +1800,7 @@ extension ProfileSectionDisplay on ProfileSection {
       case ProfileSection.contactInfo: return 'Contact Info';
       case ProfileSection.membershipHistory: return 'Membership / Service History';
       case ProfileSection.analytics: return 'Analytics';
+      case ProfileSection.skills: return 'Skills';
     }
   }
 }

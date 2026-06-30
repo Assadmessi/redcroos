@@ -353,7 +353,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     Widget? action;
     switch (_meeting.status) {
       case MeetingStatus.scheduled:
-        if (canRecordDiscussion) {
+        if (canRecordDiscussion && _meeting.canStartNow) {
           action = ElevatedButton(onPressed: _startMeeting, child: const Text('Start Meeting'));
         }
       case MeetingStatus.inProgress:
@@ -375,7 +375,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         action = null;
     }
 
-    if (action == null) return const SizedBox.shrink();
+    final showCardAnyway = canRecordDiscussion && _meeting.status == MeetingStatus.scheduled;
+    if (action == null && !showCardAnyway) return const SizedBox.shrink();
 
     return Card(
       color: AppColors.primary.withValues(alpha: 0.06),
@@ -390,7 +391,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            action,
+            if (action != null) action,
           ],
         ),
       ),
@@ -398,7 +399,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   String _workflowHint() => switch (_meeting.status) {
-        MeetingStatus.scheduled => 'Meeting not yet started.',
+        MeetingStatus.scheduled => _meeting.canStartNow
+            ? 'Meeting not yet started.'
+            : 'Starts at ${AppFormatters.date(_meeting.date)} ${_meeting.timeDisplay} — can\'t be started until then.',
         MeetingStatus.inProgress => 'Meeting in progress — record discussion and decisions below.',
         MeetingStatus.minutesDrafted => 'Awaiting sign-off from Brigade Office.',
         MeetingStatus.signed => 'Signed — ready to publish to all invitees.',
@@ -411,9 +414,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         ? investigation.committeeMemberIds.map((id) => MockMembers.findById(id)).whereType<Member>().toList()
         : <Member>[];
     final chairman = PermissionService.committeeChairman(committeeMembers);
-    final canRequestInvite = auth.canRequestOfficerInvite(committeeMembers);
-    final canAddDirectly = auth.canAddOfficerDirectly;
-    final canApproveInvites = auth.canApproveOfficerInvite;
+    final isFinalized = _meeting.status == MeetingStatus.published;
+    final canRequestInvite = !isFinalized && auth.canRequestOfficerInvite(committeeMembers);
+    final canAddDirectly = !isFinalized && auth.canAddOfficerDirectly;
+    final canApproveInvites = !isFinalized && auth.canApproveOfficerInvite;
     final pendingInvites = MockOfficerInviteRequests.pendingForMeeting(_meeting.id);
 
     return Card(

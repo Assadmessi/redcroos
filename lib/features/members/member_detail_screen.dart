@@ -558,6 +558,21 @@ class _InfoTab extends StatelessWidget {
             _row('Lifetime Member No.', member.lifetimeMemberNo!),
           if (member.serviceBookNo != null) _row('Service Book No.', member.serviceBookNo!),
         ]),
+        if (member.skillIds.isNotEmpty)
+          _section('Skills', [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: member.skillIds
+                  .map((id) => MockSkills.findById(id))
+                  .whereType<Skill>()
+                  .map((s) => Chip(
+                        avatar: const Icon(Icons.verified, size: 14, color: Colors.green),
+                        label: Text(s.nameEn, style: AppTextStyles.labelSmall),
+                      ))
+                  .toList(),
+            ),
+          ], isWrapContent: true),
         if (member.completedTrainings.isNotEmpty)
           _section('Completed Trainings', [
             Wrap(

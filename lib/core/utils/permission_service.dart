@@ -586,8 +586,11 @@ class PermissionService {
   }
 
   /// Can `member` mark attendance (present/excused/absent) for
-  /// `meeting`? The meeting's organizer/recorder, or Master Access.
+  /// `meeting`? The meeting's organizer/recorder, or Master Access —
+  /// but never once the meeting is published; published meetings are
+  /// finalized and nothing about them can be edited.
   static bool canMarkAttendance(Member member, Meeting meeting) {
+    if (meeting.status == MeetingStatus.published) return false; // finalized
     if (hasAdminOrMasterAccess(member)) return true;
     return member.id == meeting.organizerMemberId ||
         member.id == meeting.recorderMemberId;
@@ -614,26 +617,31 @@ class PermissionService {
   // ═══════════════════════════════════════════════════════════
   // MODULE 4 ADDITIONS (later) — Section-Level Access Grant System
   //
-  // Lets a Company Sergeant Major request time-limited, section-
-  // specific access to a profile they can't normally see in detail —
-  // their own Company Commander/Deputy, or any Platoon Leader in
-  // their company. Always routed to Company Commander/Deputy for
-  // approval, regardless of which of the two targets is being
-  // requested. The grantor picks sections + an expiry when approving.
+  // Open to any office-tier member — Brigade Office, Company Office,
+  // or Platoon Office — scoped to their own level, same pattern as
+  // getUnitScope: a Brigade Office member can request about anyone
+  // brigade-wide, a Company Office member about anyone in their own
+  // company, a Platoon Office member about anyone in their own
+  // platoon. Always routed to Company Commander/Deputy of the
+  // TARGET's own company for approval. The grantor picks sections +
+  // an expiry when approving.
   // ═══════════════════════════════════════════════════════════
 
   /// Can `requester` submit an access-grant request for `target`'s
-  /// profile? Currently scoped to Company Sergeant Major requesting
-  /// their own Company Commander/Deputy, or a Platoon Leader within
-  /// the same company. (Extendable to other rank pairs later — kept
-  /// narrow for now since that's the only case actually specified.)
+  /// profile? Office-tier only, scoped to the requester's own level —
+  /// see the section comment above.
   static bool canRequestAccessGrant(Member requester, Member target) {
-    if (requester.rank != MemberRank.companySergeantMajor) return false;
-    if (requester.companyNo != target.companyNo) return false;
-    final targetIsEligible = target.rank == MemberRank.companyCommander ||
-        target.rank == MemberRank.deputyCompanyCommander ||
-        target.rank == MemberRank.platoonLeader;
-    return targetIsEligible;
+    switch (requester.unitType) {
+      case UnitType.brigadeOffice:
+        return true;
+      case UnitType.companyOffice:
+        return requester.companyNo == target.companyNo;
+      case UnitType.platoonOffice:
+        return requester.companyNo == target.companyNo &&
+            requester.platoonNo == target.platoonNo;
+      default:
+        return false;
+    }
   }
 
   /// Who can approve/deny an access-grant request for `target`?
@@ -964,19 +972,52 @@ class PermissionService {
   }
 
   /// Can `member` edit `section` of a Closure Report right now?
-  /// Always true before the report locks (no deadline set yet, or
-  /// deadline hasn't passed). After locking, only true if `member`
-  /// is Master Access AND `section` is in `grantedSections` from an
-  /// approved ClosureReportEditRequest.
+  /// First gated to whoever is actually responsible for the class's
+  /// closure report: if the class has a committee, only committee
+  /// members; if it doesn't, only the instructor. Anyone outside
+  /// that group can't edit at all, locked or not. Within that
+  /// eligible group: before the report locks, they can edit freely.
+  /// After locking, a Master Access member among them can keep
+  /// editing directly — no request needed, since they already hold
+  /// the same authority that would approve the request anyway. A
+  /// non-Master-Access member among them needs `section` in
+  /// `grantedSections` from an approved ClosureReportEditRequest.
   static bool canEditClosureReportSection(
     Member member,
+    TrainingClass trainingClass,
     ClosureReportSection section, {
     required bool reportIsLocked,
     required List<ClosureReportSection> grantedSections,
   }) {
+    if (!isClosureReportEditor(member, trainingClass)) return false;
     if (!reportIsLocked) return true;
-    if (!hasAdminOrMasterAccess(member)) return false;
+    if (hasAdminOrMasterAccess(member)) return true;
     return grantedSections.contains(section);
+  }
+
+  /// Is `member` part of the group responsible for `trainingClass`'s
+  /// closure report — its committee if it has one, otherwise just
+  /// the instructor? Shared by canEditClosureReportSection and
+  /// canRequestClosureReportEdit so both use the same definition of
+  /// "who's actually responsible for this report."
+  static bool isClosureReportEditor(Member member, TrainingClass trainingClass) {
+    if (trainingClass.hasCommittee) {
+      return trainingClass.committee.any((c) => c.memberId == member.id);
+    }
+    return trainingClass.instructorId == member.id;
+  }
+
+  /// Can `member` submit a ClosureReportEditRequest for
+  /// `trainingClass`'s (locked) report? Must be in the eligible group
+  /// (committee if it has one, else the instructor) AND not already
+  /// Master Access — a Master Access member in that group edits
+  /// directly via canEditClosureReportSection instead, since
+  /// requesting their own approval would be pointless. Per the
+  /// general rule: whoever already holds the approving authority
+  /// skips the request step entirely.
+  static bool canRequestClosureReportEdit(Member member, TrainingClass trainingClass) {
+    if (hasAdminOrMasterAccess(member)) return false;
+    return isClosureReportEditor(member, trainingClass);
   }
 
   /// Can `member` set/change a Closure Report's submission deadline?
@@ -1002,7 +1043,9 @@ class PermissionService {
   /// Can `member` approve/deny a ClosureReportEditRequest? Master
   /// Access only — this is the one exception to "finished classes
   /// can't be touched," and it's deliberately gated to the top tier
-  /// regardless of which company the class belongs to.
+  /// regardless of which company the class belongs to. Never the
+  /// same person as the requester in practice — canRequestClosureReportEdit
+  /// excludes Master Access members, since they'd edit directly instead.
   static bool canApproveClosureReportEditRequest(Member member) {
     return hasAdminOrMasterAccess(member);
   }
@@ -1072,12 +1115,37 @@ class PermissionService {
     return member.status == MemberStatus.active;
   }
 
-  /// Can `member` self check-in to `duty`? True for ANY duty type
-  /// (not just emergency) — per the locked rule that real-time
-  /// check-in applies to all duties. Real-time location verification
-  /// is held for Module 16/19; this is presence-intent only for now.
+  /// Can `member` self check-in to `duty`? Emergency Duty is the one
+  /// exception — ANY active member can self check-in there (which
+  /// also self-joins them), since requiring pre-assignment would
+  /// delay response to a real emergency. For every other duty type,
+  /// check-in requires already being an accepted member of the duty
+  /// — either assigned by a Commander/Officer and accepted, or
+  /// self-joined ahead of time via canJoinUpcomingDuty. Real-time
+  /// location verification is held for Module 16/19; this is
+  /// presence-intent only for now.
   static bool canCheckIn(Member member, Duty duty) {
-    return member.status == MemberStatus.active;
+    if (member.status != MemberStatus.active) return false;
+    if (duty.type == DutyType.emergency) return true;
+    return duty.members.any((dm) =>
+        dm.memberId == member.id && dm.status == DutyAssignmentStatus.accepted);
+  }
+
+  /// Can `member` self-join an upcoming (not yet assigned) duty?
+  /// Non-emergency duties only — Emergency Duty self-joining happens
+  /// directly via check-in instead, with no time restriction. For
+  /// every other type: the duty must still be upcoming, the member
+  /// must not already be in it, and it must be more than 1 day
+  /// before the duty's scheduled start — once inside that 24-hour
+  /// window, joining closes and only already-assigned members can
+  /// check in.
+  static bool canJoinUpcomingDuty(Member member, Duty duty) {
+    if (member.status != MemberStatus.active) return false;
+    if (duty.type == DutyType.emergency) return false;
+    if (duty.status != DutyStatus.upcoming) return false;
+    if (duty.members.any((dm) => dm.memberId == member.id)) return false;
+    final joinDeadline = duty.scheduledDateTime.subtract(const Duration(days: 1));
+    return DateTime.now().isBefore(joinDeadline);
   }
 
   /// Can `member` submit/approve the final report for an Emergency

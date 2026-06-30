@@ -190,6 +190,10 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canCheckIn(_currentMember!, duty);
 
+  bool canJoinUpcomingDuty(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canJoinUpcomingDuty(_currentMember!, duty);
+
   bool get canApproveEmergencyDutyReport =>
       _currentMember != null &&
       PermissionService.canApproveEmergencyDutyReport(_currentMember!);
@@ -212,6 +216,7 @@ class AuthProvider extends ChangeNotifier {
       PermissionService.canApproveOfficerInvite(_currentMember!);
 
   bool canEditClosureReportSection(
+    TrainingClass trainingClass,
     ClosureReportSection section, {
     required bool reportIsLocked,
     required List<ClosureReportSection> grantedSections,
@@ -219,10 +224,15 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canEditClosureReportSection(
         _currentMember!,
+        trainingClass,
         section,
         reportIsLocked: reportIsLocked,
         grantedSections: grantedSections,
       );
+
+  bool canRequestClosureReportEdit(TrainingClass trainingClass) =>
+      _currentMember != null &&
+      PermissionService.canRequestClosureReportEdit(_currentMember!, trainingClass);
 
   bool get canSetClosureReportDeadline =>
       _currentMember != null &&

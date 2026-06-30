@@ -141,6 +141,58 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
     );
   }
 
+  /// Self-join an upcoming duty ahead of time (non-emergency only,
+  /// gated by canJoinUpcomingDuty — must be more than 1 day before
+  /// the duty starts). Adds the member as accepted, but WITHOUT a
+  /// check-in timestamp — check-in itself still happens separately,
+  /// at/near the duty, once they're an assigned member.
+  void _joinDuty() {
+    final auth = context.read<AuthProvider>();
+    final me = auth.currentMember;
+    if (me == null) return;
+
+    final now = DateTime.now();
+
+    setState(() {
+      _duty = Duty(
+        id: _duty.id, title: _duty.title, titleMm: _duty.titleMm,
+        type: _duty.type, scale: _duty.scale, date: _duty.date,
+        startHour: _duty.startHour, startMinute: _duty.startMinute,
+        endHour: _duty.endHour, endMinute: _duty.endMinute,
+        location: _duty.location,
+        members: [
+          ..._duty.members,
+          DutyMember(
+            memberId: me.id,
+            roleInDuty: DutyRoleInDuty.member,
+            status: DutyAssignmentStatus.accepted,
+            assignedAt: now,
+            respondedAt: now,
+          ),
+        ],
+        status: _duty.status,
+        description: _duty.description,
+        isEvent: _duty.isEvent,
+        eventId: _duty.eventId,
+        createdByMemberId: _duty.createdByMemberId,
+        isDisasterLevel: _duty.isDisasterLevel,
+        escalatedToDutyId: _duty.escalatedToDutyId,
+        originatingEmergencyDutyId: _duty.originatingEmergencyDutyId,
+        isMutualAidOutsideBotahtaung: _duty.isMutualAidOutsideBotahtaung,
+        report: _duty.report,
+        reportSubmittedByMemberId: _duty.reportSubmittedByMemberId,
+        reportSubmittedAt: _duty.reportSubmittedAt,
+        approvedByMemberId: _duty.approvedByMemberId,
+        approvedAt: _duty.approvedAt,
+      );
+    });
+
+    MockDuties.update(_duty);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Joined duty — you can check in once it starts')),
+    );
+  }
+
   void _rebuildDuty({
     String? report,
     String? reportSubmittedByMemberId,
@@ -381,7 +433,13 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         auth.canCheckIn(_duty) &&
         !alreadyCheckedIn &&
         (_duty.status == DutyStatus.upcoming || _duty.status == DutyStatus.ongoing);
+    final canJoinDuty = me != null && auth.canJoinUpcomingDuty(_duty);
     final isEmergencyDuty = _duty.type == DutyType.emergency;
+    final joinWindowClosed = me != null &&
+        !isEmergencyDuty &&
+        myDutyMember == null &&
+        !canJoinDuty &&
+        (_duty.status == DutyStatus.upcoming || _duty.status == DutyStatus.ongoing);
     final canSubmitReport = isEmergencyDuty &&
         me != null &&
         myDutyMember != null &&
@@ -433,6 +491,10 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         children: [
           _buildInfoCard(),
           const SizedBox(height: 16),
+          if (canJoinDuty) _buildJoinDutyCard(),
+          if (canJoinDuty) const SizedBox(height: 16),
+          if (joinWindowClosed) _buildJoinWindowClosedCard(),
+          if (joinWindowClosed) const SizedBox(height: 16),
           if (canCheckIn || alreadyCheckedIn) _buildCheckInCard(canCheckIn, alreadyCheckedIn, myDutyMember),
           if (canCheckIn || alreadyCheckedIn) const SizedBox(height: 16),
           if (isEmergencyDuty && (canSubmitReport || _duty.report != null)) _buildEmergencyReportCard(canSubmitReport, canApproveReport),
@@ -650,6 +712,58 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, minimumSize: const Size.fromHeight(44)),
               icon: const Icon(Icons.trending_up, size: 18),
               label: const Text('Escalate to Large Scale'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoinWindowClosedCard() {
+    return Card(
+      color: AppColors.grey50.withValues(alpha: 0.4),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.lock_outline, size: 18, color: AppColors.grey500),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Joining has closed for this duty — it\'s within 1 day of starting. '
+                'Contact your Commander/Officer if you need to be added.',
+                style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoinDutyCard() {
+    return Card(
+      color: AppColors.primary.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Want to join this duty?', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'You\'re not currently assigned. You can join up until 1 day before it starts.',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _joinDuty,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Join Duty'),
             ),
           ],
         ),

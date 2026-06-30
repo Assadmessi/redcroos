@@ -59,6 +59,7 @@ class _ClassClosureReportScreenState extends State<ClassClosureReportScreen> {
 
   bool _canEditSection(AuthProvider auth, ClosureReportSection section) {
     return auth.canEditClosureReportSection(
+      _trainingClass,
       section,
       reportIsLocked: _isLocked,
       grantedSections: _grantedSections,
@@ -252,6 +253,7 @@ class _ClassClosureReportScreenState extends State<ClassClosureReportScreen> {
     final canSetDeadline = auth.canSetClosureReportDeadline;
     final canIssues = _canEditSection(auth, ClosureReportSection.issuesEncountered);
     final canRecommendations = _canEditSection(auth, ClosureReportSection.recommendations);
+    final canRequestEdit = auth.canRequestClosureReportEdit(_trainingClass);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Class Closure Report')),
@@ -322,7 +324,7 @@ class _ClassClosureReportScreenState extends State<ClassClosureReportScreen> {
               style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
               child: Text(_existingReport == null ? 'Save Closure Report' : 'Update Closure Report'),
             ),
-          if (_isLocked && !canIssues && !canRecommendations) ...[
+          if (_isLocked && !canIssues && !canRecommendations && canRequestEdit) ...[
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => _requestEditAccess(auth),
