@@ -1817,6 +1817,15 @@ class MockDuties {
     all.add(duty);
   }
 
+  static void update(Duty updated) {
+    final index = all.indexWhere((d) => d.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
   /// All DutyMember assignment records for `memberId`, paired with
   /// the Duty they belong to (most recent first).
   static List<({Duty duty, DutyMember assignment})> getMemberDuties(String memberId) {
@@ -2009,6 +2018,7 @@ class MockMeetings {
             presenterMemberId: 'm2',
           ),
         ],
+        linkedInvestigationId: 'inv1',
       ),
     ];
   }
@@ -2100,7 +2110,22 @@ class MockInvestigations {
       appealCommitteeMemberIds: const [],
       approvedSealedViewers: const [],
       committeeJoinDates: const {},
-      stageLogs: const [],
+      stageLogs: [
+        InvestigationStageLog(
+          id: 'stage1', investigationId: 'inv1',
+          stage: InvestigationStatus.opened,
+          timestamp: DateTime.now().subtract(const Duration(days: 10)),
+          actionedById: 'm2',
+          notes: 'Case opened following a duty roster review flagging repeated absences.',
+        ),
+        InvestigationStageLog(
+          id: 'stage2', investigationId: 'inv1',
+          stage: InvestigationStatus.underInvestigation,
+          timestamp: DateTime.now().subtract(const Duration(days: 9)),
+          actionedById: 'm2',
+          notes: 'Committee formed, evidence gathering started.',
+        ),
+      ],
       attachments: const [],
       isSealed: false,
     ),
@@ -3036,6 +3061,55 @@ class MockClosureReportEditRequests {
       }
     }
     return granted.toList();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MOCK OFFICER INVITE REQUESTS
+// Investigation meeting officer-invite requests from the Committee
+// Chairman, routed to Master Access for approval. In-memory store,
+// resets on app restart, replaced by Supabase in Module 16.
+// ═══════════════════════════════════════════════════════════════
+class MockOfficerInviteRequests {
+  static final List<OfficerInviteRequest> all = _seedRequests();
+
+  static List<OfficerInviteRequest> _seedRequests() {
+    final now = DateTime.now();
+    return [
+      // m2 (highest-ranking on inv1's committee, so treated as
+      // Chairman) requesting to invite m101 (Company Commander,
+      // already on the investigation's committee per inv1's seed
+      // data, but not yet invited to meeting3 specifically) — tests
+      // the Master Access approval flow directly.
+      OfficerInviteRequest(
+        id: 'invite1',
+        meetingId: 'meeting3',
+        requestedByMemberId: 'm2',
+        officerMemberId: 'm101',
+        reason: 'Need direct input on the accused\'s duty attendance records before the next stage.',
+        status: OfficerInviteRequestStatus.pending,
+        requestedAt: now.subtract(const Duration(hours: 2)),
+      ),
+    ];
+  }
+
+  static void add(OfficerInviteRequest request) {
+    all.add(request);
+  }
+
+  static void update(OfficerInviteRequest updated) {
+    final index = all.indexWhere((r) => r.id == updated.id);
+    if (index != -1) {
+      all[index] = updated;
+    } else {
+      all.add(updated);
+    }
+  }
+
+  static List<OfficerInviteRequest> pendingForMeeting(String meetingId) {
+    return all
+        .where((r) => r.meetingId == meetingId && r.status == OfficerInviteRequestStatus.pending)
+        .toList();
   }
 }
 

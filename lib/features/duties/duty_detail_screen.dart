@@ -51,10 +51,208 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         description: _duty.description,
         isEvent: _duty.isEvent,
         eventId: _duty.eventId,
+        createdByMemberId: _duty.createdByMemberId,
+        isDisasterLevel: _duty.isDisasterLevel,
+        escalatedToDutyId: _duty.escalatedToDutyId,
+        originatingEmergencyDutyId: _duty.originatingEmergencyDutyId,
+        isMutualAidOutsideBotahtaung: _duty.isMutualAidOutsideBotahtaung,
+        report: _duty.report,
+        reportSubmittedByMemberId: _duty.reportSubmittedByMemberId,
+        reportSubmittedAt: _duty.reportSubmittedAt,
+        approvedByMemberId: _duty.approvedByMemberId,
+        approvedAt: _duty.approvedAt,
       );
     });
+    MockDuties.update(_duty);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(accept ? 'Assignment accepted' : 'Assignment declined')),
+    );
+  }
+
+  /// Real-time check-in — any member (whether formally assigned or
+  /// not, for emergency duties) marks themselves present at the duty
+  /// site with a timestamp. If they weren't already in the duty's
+  /// member list (e.g. self-joining an Emergency Duty), they're
+  /// added now with an auto-accepted assignment. Location
+  /// verification is held for Module 16/19 — this is presence-intent
+  /// only for now.
+  void _checkIn() {
+    final auth = context.read<AuthProvider>();
+    final me = auth.currentMember;
+    if (me == null) return;
+
+    final alreadyInDuty = _duty.members.any((dm) => dm.memberId == me.id);
+    final now = DateTime.now();
+
+    setState(() {
+      final updatedMembers = alreadyInDuty
+          ? _duty.members.map((dm) {
+              if (dm.memberId != me.id) return dm;
+              return DutyMember(
+                memberId: dm.memberId,
+                roleInDuty: dm.roleInDuty,
+                positionId: dm.positionId,
+                status: dm.status,
+                rejectionReason: dm.rejectionReason,
+                checkedInAt: now,
+                assignedAt: dm.assignedAt,
+                respondedAt: dm.respondedAt,
+              );
+            }).toList()
+          : [
+              ..._duty.members,
+              DutyMember(
+                memberId: me.id,
+                roleInDuty: DutyRoleInDuty.member,
+                status: DutyAssignmentStatus.accepted,
+                checkedInAt: now,
+                assignedAt: now,
+                respondedAt: now,
+              ),
+            ];
+
+      _duty = Duty(
+        id: _duty.id, title: _duty.title, titleMm: _duty.titleMm,
+        type: _duty.type, scale: _duty.scale, date: _duty.date,
+        startHour: _duty.startHour, startMinute: _duty.startMinute,
+        endHour: _duty.endHour, endMinute: _duty.endMinute,
+        location: _duty.location,
+        members: updatedMembers,
+        status: _duty.status,
+        description: _duty.description,
+        isEvent: _duty.isEvent,
+        eventId: _duty.eventId,
+        createdByMemberId: _duty.createdByMemberId,
+        isDisasterLevel: _duty.isDisasterLevel,
+        escalatedToDutyId: _duty.escalatedToDutyId,
+        originatingEmergencyDutyId: _duty.originatingEmergencyDutyId,
+        isMutualAidOutsideBotahtaung: _duty.isMutualAidOutsideBotahtaung,
+        report: _duty.report,
+        reportSubmittedByMemberId: _duty.reportSubmittedByMemberId,
+        reportSubmittedAt: _duty.reportSubmittedAt,
+        approvedByMemberId: _duty.approvedByMemberId,
+        approvedAt: _duty.approvedAt,
+      );
+    });
+
+    MockDuties.update(_duty);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Checked in')),
+    );
+  }
+
+  void _rebuildDuty({
+    String? report,
+    String? reportSubmittedByMemberId,
+    DateTime? reportSubmittedAt,
+    String? approvedByMemberId,
+    DateTime? approvedAt,
+    String? escalatedToDutyId,
+  }) {
+    _duty = Duty(
+      id: _duty.id, title: _duty.title, titleMm: _duty.titleMm,
+      type: _duty.type, scale: _duty.scale, date: _duty.date,
+      startHour: _duty.startHour, startMinute: _duty.startMinute,
+      endHour: _duty.endHour, endMinute: _duty.endMinute,
+      location: _duty.location, members: _duty.members,
+      status: _duty.status, description: _duty.description,
+      isEvent: _duty.isEvent, eventId: _duty.eventId,
+      createdByMemberId: _duty.createdByMemberId,
+      isDisasterLevel: _duty.isDisasterLevel,
+      escalatedToDutyId: escalatedToDutyId ?? _duty.escalatedToDutyId,
+      originatingEmergencyDutyId: _duty.originatingEmergencyDutyId,
+      isMutualAidOutsideBotahtaung: _duty.isMutualAidOutsideBotahtaung,
+      report: report ?? _duty.report,
+      reportSubmittedByMemberId: reportSubmittedByMemberId ?? _duty.reportSubmittedByMemberId,
+      reportSubmittedAt: reportSubmittedAt ?? _duty.reportSubmittedAt,
+      approvedByMemberId: approvedByMemberId ?? _duty.approvedByMemberId,
+      approvedAt: approvedAt ?? _duty.approvedAt,
+    );
+  }
+
+  Future<void> _submitReport() async {
+    final ctrl = TextEditingController(text: _duty.report ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Submit After-Action Report'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 6,
+          decoration: const InputDecoration(
+            hintText: 'What happened, who responded, outcome...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, ctrl.text.trim()),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty) return;
+
+    final me = context.read<AuthProvider>().currentMember;
+    setState(() {
+      _rebuildDuty(
+        report: result,
+        reportSubmittedByMemberId: me?.id,
+        reportSubmittedAt: DateTime.now(),
+      );
+    });
+    MockDuties.update(_duty);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report submitted — awaiting approval')),
+    );
+  }
+
+  void _approveReport() {
+    final me = context.read<AuthProvider>().currentMember;
+    setState(() {
+      _rebuildDuty(approvedByMemberId: me?.id, approvedAt: DateTime.now());
+    });
+    MockDuties.update(_duty);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report approved')),
+    );
+  }
+
+  void _escalateToLargeScale() {
+    final now = DateTime.now();
+    final newDutyId = 'duty_largescale_${now.microsecondsSinceEpoch}';
+
+    final largeScaleDuty = Duty(
+      id: newDutyId,
+      title: '${_duty.title} — Large Scale Operation',
+      titleMm: '',
+      type: DutyType.disaster,
+      scale: DutyScale.largeScale,
+      date: now,
+      startHour: now.hour,
+      startMinute: now.minute,
+      location: _duty.location,
+      members: _duty.members,
+      status: DutyStatus.upcoming,
+      description: 'Escalated from Emergency Duty: ${_duty.title}',
+      originatingEmergencyDutyId: _duty.id,
+    );
+    MockDuties.add(largeScaleDuty);
+
+    setState(() {
+      _rebuildDuty(escalatedToDutyId: newDutyId);
+    });
+    MockDuties.update(_duty);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Escalated to Large Scale operation')),
+    );
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => DutyDetailScreen(dutyId: newDutyId)),
     );
   }
 
@@ -62,6 +260,7 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
     setState(() {
       _duty = _copyWithStatus(_duty, DutyStatus.completed);
     });
+    MockDuties.update(_duty);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Duty marked as completed')),
     );
@@ -85,6 +284,7 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
               setState(() {
                 _duty = _copyWithStatus(_duty, DutyStatus.cancelled);
               });
+              MockDuties.update(_duty);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Duty cancelled')),
               );
@@ -149,6 +349,16 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
       location: duty.location, members: duty.members,
       status: status, description: duty.description,
       isEvent: duty.isEvent, eventId: duty.eventId,
+      createdByMemberId: duty.createdByMemberId,
+      isDisasterLevel: duty.isDisasterLevel,
+      escalatedToDutyId: duty.escalatedToDutyId,
+      originatingEmergencyDutyId: duty.originatingEmergencyDutyId,
+      isMutualAidOutsideBotahtaung: duty.isMutualAidOutsideBotahtaung,
+      report: duty.report,
+      reportSubmittedByMemberId: duty.reportSubmittedByMemberId,
+      reportSubmittedAt: duty.reportSubmittedAt,
+      approvedByMemberId: duty.approvedByMemberId,
+      approvedAt: duty.approvedAt,
     );
   }
 
@@ -163,6 +373,27 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
     final canCancel = auth.canCancelDuty(_duty) &&
         (_duty.status == DutyStatus.upcoming || _duty.status == DutyStatus.ongoing);
     final canDelete = auth.canDeleteDuty(_duty);
+    final myDutyMember = me != null
+        ? _duty.members.where((dm) => dm.memberId == me.id).firstOrNull
+        : null;
+    final alreadyCheckedIn = myDutyMember?.checkedInAt != null;
+    final canCheckIn = me != null &&
+        auth.canCheckIn(_duty) &&
+        !alreadyCheckedIn &&
+        (_duty.status == DutyStatus.upcoming || _duty.status == DutyStatus.ongoing);
+    final isEmergencyDuty = _duty.type == DutyType.emergency;
+    final canSubmitReport = isEmergencyDuty &&
+        me != null &&
+        myDutyMember != null &&
+        _duty.status == DutyStatus.completed &&
+        !_duty.isReportApproved;
+    final canApproveReport = isEmergencyDuty &&
+        auth.canApproveEmergencyDutyReport &&
+        _duty.report != null &&
+        !_duty.isReportApproved;
+    final canEscalate = isEmergencyDuty &&
+        _duty.isEligibleForEscalation &&
+        auth.canEscalateToLargeScale(_duty);
 
     return Scaffold(
       appBar: AppBar(
@@ -202,6 +433,12 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         children: [
           _buildInfoCard(),
           const SizedBox(height: 16),
+          if (canCheckIn || alreadyCheckedIn) _buildCheckInCard(canCheckIn, alreadyCheckedIn, myDutyMember),
+          if (canCheckIn || alreadyCheckedIn) const SizedBox(height: 16),
+          if (isEmergencyDuty && (canSubmitReport || _duty.report != null)) _buildEmergencyReportCard(canSubmitReport, canApproveReport),
+          if (isEmergencyDuty && (canSubmitReport || _duty.report != null)) const SizedBox(height: 16),
+          if (canEscalate) _buildEscalationCard(),
+          if (canEscalate) const SizedBox(height: 16),
           if (canRespond) _buildResponseCard(),
           if (canRespond) const SizedBox(height: 16),
           _buildMembersCard(auth),
@@ -309,8 +546,165 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         DutyType.eventMedical => 'Event Medical',
         DutyType.disaster => 'Disaster Response',
         DutyType.administrative => 'Administrative',
+        DutyType.emergency => 'Emergency',
         DutyType.other => 'Other',
       };
+
+  Widget _buildEmergencyReportCard(bool canSubmitReport, bool canApproveReport) {
+    final submitter = _duty.reportSubmittedByMemberId != null
+        ? MockMembers.findById(_duty.reportSubmittedByMemberId!)
+        : null;
+    final approver = _duty.approvedByMemberId != null
+        ? MockMembers.findById(_duty.approvedByMemberId!)
+        : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('After-Action Report', style: AppTextStyles.headingSmall)),
+                if (_duty.isReportApproved)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('APPROVED', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
+                  )
+                else if (_duty.report != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('PENDING APPROVAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange)),
+                  ),
+              ],
+            ),
+            if (_duty.report != null) ...[
+              const SizedBox(height: 8),
+              Text(_duty.report!, style: AppTextStyles.bodyMedium),
+              const SizedBox(height: 6),
+              if (submitter != null)
+                Text('Submitted by ${submitter.nameEn}', style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500)),
+              if (approver != null)
+                Text('Approved by ${approver.nameEn}', style: AppTextStyles.labelSmall.copyWith(color: Colors.green)),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (canSubmitReport)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _submitReport,
+                      child: Text(_duty.report == null ? 'Submit Report' : 'Edit Report'),
+                    ),
+                  ),
+                if (canSubmitReport && canApproveReport) const SizedBox(width: 12),
+                if (canApproveReport)
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _approveReport,
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      child: const Text('Approve Report'),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEscalationCard() {
+    return Card(
+      color: Colors.red.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.trending_up, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Disaster-Level Response', style: AppTextStyles.headingSmall.copyWith(color: Colors.red))),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'This emergency is flagged disaster-level and within Botahtaung. '
+              'If the situation requires a coordinated multi-section response, escalate it to a Large Scale operation.',
+              style: AppTextStyles.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _escalateToLargeScale,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, minimumSize: const Size.fromHeight(44)),
+              icon: const Icon(Icons.trending_up, size: 18),
+              label: const Text('Escalate to Large Scale'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckInCard(bool canCheckIn, bool alreadyCheckedIn, DutyMember? myDutyMember) {
+    if (alreadyCheckedIn) {
+      final time = myDutyMember!.checkedInAt!;
+      final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      return Card(
+        color: Colors.green.withValues(alpha: 0.06),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('You checked in at $timeStr on ${AppFormatters.date(time)}.'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('At the duty site?', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Check in to confirm you\'ve arrived.',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _checkIn,
+              icon: const Icon(Icons.location_on_outlined, size: 18),
+              label: const Text('Check In'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildResponseCard() {
     return Card(
@@ -347,13 +741,32 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
   }
 
   Widget _buildMembersCard(AuthProvider auth) {
+    final checkedInCount = _duty.members.where((dm) => dm.checkedInAt != null).length;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Assigned Members (${_duty.members.length})', style: AppTextStyles.headingSmall),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Assigned Members (${_duty.members.length})', style: AppTextStyles.headingSmall),
+                ),
+                if (checkedInCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '$checkedInCount checked in',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             ..._duty.members.map((dm) => _memberRow(dm)),
           ],
@@ -399,6 +812,17 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
               children: [
                 Text(name, style: AppTextStyles.bodyMedium),
                 Text('$rank · $roleLabel', style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500)),
+                if (dm.checkedInAt != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle, size: 12, color: Colors.green),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Checked in ${dm.checkedInAt!.hour.toString().padLeft(2, '0')}:${dm.checkedInAt!.minute.toString().padLeft(2, '0')}',
+                        style: AppTextStyles.labelSmall.copyWith(color: Colors.green),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),

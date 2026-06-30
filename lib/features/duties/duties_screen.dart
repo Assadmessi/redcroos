@@ -8,6 +8,7 @@ import '../../core/utils/app_utils.dart';
 import '../auth/auth_provider.dart';
 import 'duty_detail_screen.dart';
 import 'duty_form_screen.dart';
+import 'emergency_duty_form_screen.dart';
 import '../access/request_access_link.dart';
 
 enum _StatusFilter { all, upcoming, ongoing, completed, cancelled }
@@ -94,8 +95,8 @@ class _DutiesScreenState extends State<DutiesScreen> {
           Column(
             children: [
               if (!canCreate)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: RequestAccessLink(featureName: 'Duties — Create/Edit/Cancel/Delete'),
                 ),
               _buildSearchBar(auth),
@@ -135,11 +136,27 @@ class _DutiesScreenState extends State<DutiesScreen> {
               ),
             ],
           ),
+          if (auth.canCreateEmergencyDuty)
+            Positioned(
+              right: 16,
+              bottom: canCreate ? 76 : 16,
+              child: FloatingActionButton.extended(
+                heroTag: 'emergency',
+                backgroundColor: Colors.red,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EmergencyDutyFormScreen()),
+                ),
+                icon: const Icon(Icons.emergency_outlined),
+                label: const Text('Report Emergency'),
+              ),
+            ),
           if (canCreate)
             Positioned(
               right: 16,
               bottom: 16,
               child: FloatingActionButton.extended(
+                heroTag: 'create',
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DutyFormScreen()),
@@ -247,7 +264,7 @@ class _DutiesScreenState extends State<DutiesScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.event_busy, size: 48, color: AppColors.grey50),
+          Icon(Icons.event_busy, size: 48, color: AppColors.grey50),
           const SizedBox(height: 12),
           Text(
             auth.tr('No duties found', 'မည်သည့်တာဝန်မှ တွေ့မရှိပါ'),
@@ -282,6 +299,7 @@ class _DutyCard extends StatelessWidget {
       case DutyType.eventMedical: return Icons.local_hospital_outlined;
       case DutyType.disaster: return Icons.warning_amber_outlined;
       case DutyType.administrative: return Icons.assignment_outlined;
+      case DutyType.emergency: return Icons.emergency_outlined;
       case DutyType.other: return Icons.event_note_outlined;
     }
   }
@@ -339,11 +357,11 @@ class _DutyCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today, size: 12, color: AppColors.grey500),
+                        Icon(Icons.calendar_today, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Text(AppFormatters.date(duty.date), style: AppTextStyles.labelSmall),
                         const SizedBox(width: 10),
-                        const Icon(Icons.access_time, size: 12, color: AppColors.grey500),
+                        Icon(Icons.access_time, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Text(duty.startTimeDisplay, style: AppTextStyles.labelSmall),
                       ],
@@ -351,7 +369,7 @@ class _DutyCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 12, color: AppColors.grey500),
+                        Icon(Icons.location_on_outlined, size: 12, color: AppColors.grey500),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(duty.location, style: AppTextStyles.labelSmall, overflow: TextOverflow.ellipsis),

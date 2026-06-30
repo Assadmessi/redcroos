@@ -181,6 +181,36 @@ class AuthProvider extends ChangeNotifier {
       _currentMember != null &&
       PermissionService.canApprovePostTrainingReport(_currentMember!);
 
+  // ── Emergency Duty additions ──
+  bool get canCreateEmergencyDuty =>
+      _currentMember != null &&
+      PermissionService.canCreateEmergencyDuty(_currentMember!);
+
+  bool canCheckIn(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canCheckIn(_currentMember!, duty);
+
+  bool get canApproveEmergencyDutyReport =>
+      _currentMember != null &&
+      PermissionService.canApproveEmergencyDutyReport(_currentMember!);
+
+  bool canEscalateToLargeScale(Duty duty) =>
+      _currentMember != null &&
+      PermissionService.canEscalateToLargeScale(_currentMember!, duty);
+
+  // ── Investigation Meeting additions ──
+  bool canRequestOfficerInvite(List<Member> committeeMembers) =>
+      _currentMember != null &&
+      PermissionService.canRequestOfficerInvite(_currentMember!, committeeMembers);
+
+  bool get canAddOfficerDirectly =>
+      _currentMember != null &&
+      PermissionService.canAddOfficerDirectly(_currentMember!);
+
+  bool get canApproveOfficerInvite =>
+      _currentMember != null &&
+      PermissionService.canApproveOfficerInvite(_currentMember!);
+
   bool canEditClosureReportSection(
     ClosureReportSection section, {
     required bool reportIsLocked,

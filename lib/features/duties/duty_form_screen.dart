@@ -306,7 +306,7 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
               if (_scale == DutyScale.largeScale)
                 Row(
                   children: [
-                    const Icon(Icons.map_outlined, size: 18, color: AppColors.grey500),
+                    Icon(Icons.map_outlined, size: 18, color: AppColors.grey500),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -418,6 +418,7 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
       initialValue: _type,
       decoration: const InputDecoration(labelText: 'Duty Type', border: OutlineInputBorder()),
       items: DutyType.values
+          .where((t) => t != DutyType.emergency)
           .map((t) => DropdownMenuItem(value: t, child: Text(_typeLabel(t))))
           .toList(),
       onChanged: (v) => setState(() => _type = v!),
@@ -432,6 +433,10 @@ class _DutyFormScreenState extends State<DutyFormScreen> {
         DutyType.eventMedical => 'Event Medical',
         DutyType.disaster => 'Disaster Response',
         DutyType.administrative => 'Administrative',
+        // Not selectable from this dropdown — Emergency Duty has its
+        // own separate creation flow, open to anyone, per the locked
+        // design. Case included only for switch exhaustiveness.
+        DutyType.emergency => 'Emergency',
         DutyType.other => 'Other',
       };
 

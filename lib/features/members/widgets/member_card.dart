@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../data/models/models.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/app_utils.dart';
+import 'member_avatar.dart';
 
 class MemberCard extends StatelessWidget {
   final Member member;
@@ -49,10 +49,10 @@ class MemberCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (member.isAdminRole) const _Badge(label: 'ADMIN', color: AppColors.error),
+                        if (member.isAdminRole) _Badge(label: 'ADMIN', color: AppColors.error),
                         if (member.status == MemberStatus.inactive &&
                             member.inactiveReason != null)
-                          const _Badge(label: 'ON LEAVE', color: Colors.orange),
+                          _Badge(label: 'ON LEAVE', color: Colors.orange),
                         if (!member.isAvailable && !isVacant)
                           const Padding(
                             padding: EdgeInsets.only(left: 4),
@@ -106,19 +106,7 @@ class _Avatar extends StatelessWidget {
         child: const Icon(Icons.person_outline, color: AppColors.grey50),
       );
     }
-    final color = AvatarColorGen.fromString(member.id);
-    return CircleAvatar(
-      radius: 24,
-      backgroundColor: color,
-      backgroundImage:
-          member.photoUrl != null ? NetworkImage(member.photoUrl!) : null,
-      child: member.photoUrl == null
-          ? Text(
-              member.initials,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            )
-          : null,
-    );
+    return MemberAvatar(member: member, size: 48);
   }
 }
 

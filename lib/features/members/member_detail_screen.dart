@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_utils.dart';
 import '../auth/auth_provider.dart';
 import 'widgets/member_id_card.dart';
+import 'widgets/member_avatar.dart';
 import 'member_form_screen.dart';
 
 class MemberDetailScreen extends StatefulWidget {
@@ -428,7 +429,7 @@ class _RestrictedTabState extends State<_RestrictedTab> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.lock_outline, size: 18, color: AppColors.grey500),
+                    Icon(Icons.lock_outline, size: 18, color: AppColors.grey500),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -580,7 +581,17 @@ class _InfoTab extends StatelessWidget {
         child: Column(
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                MemberAvatar(
+                  member: member,
+                  width: 64,
+                  height: 76,
+                  shape: BoxShape.rectangle,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.grey50.withValues(alpha: 0.4)),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

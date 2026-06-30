@@ -1056,4 +1056,98 @@ class PermissionService {
         member.rank == MemberRank.deputyBrigadeCommander ||
         member.rank == MemberRank.brigadeCommander;
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // EMERGENCY DUTY ADDITIONS
+  // For unexpected accidents/disasters — deliberately open, since
+  // requiring rank-gated creation would delay response to a real
+  // emergency. ANY active member can create one or self-check-in;
+  // only the final report submission is gated to leadership.
+  // ═══════════════════════════════════════════════════════════
+
+  /// Can `member` create an Emergency Duty? Any active member —
+  /// whoever arrives first at an unexpected accident should be able
+  /// to log it immediately, with no rank gate slowing that down.
+  static bool canCreateEmergencyDuty(Member member) {
+    return member.status == MemberStatus.active;
+  }
+
+  /// Can `member` self check-in to `duty`? True for ANY duty type
+  /// (not just emergency) — per the locked rule that real-time
+  /// check-in applies to all duties. Real-time location verification
+  /// is held for Module 16/19; this is presence-intent only for now.
+  static bool canCheckIn(Member member, Duty duty) {
+    return member.status == MemberStatus.active;
+  }
+
+  /// Can `member` submit/approve the final report for an Emergency
+  /// Duty? Same "leadership sign-off" tier used throughout the app —
+  /// Brigade Office Chief, Deputy Brigade Commander, Brigade
+  /// Commander, or Master Access/Admin. Deliberately NOT the duty's
+  /// own Commander/Officer, since the locked requirement specifically
+  /// calls for "higher up" approval beyond whoever responded.
+  static bool canApproveEmergencyDutyReport(Member member) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return member.isBrigadeOfficeChief ||
+        member.rank == MemberRank.deputyBrigadeCommander ||
+        member.rank == MemberRank.brigadeCommander;
+  }
+
+  /// Can `member` escalate a completed disaster-level Emergency Duty
+  /// to a Large Scale operation? The duty's own Commander/Officer
+  /// (whoever led the response), or Master Access — this is a
+  /// tactical decision made by whoever was actually there, not
+  /// routed through the same leadership-approval tier as the report.
+  static bool canEscalateToLargeScale(Member member, Duty duty) {
+    if (hasAdminOrMasterAccess(member)) return true;
+    return canMakeDecisionInDuty(member, duty);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // INVESTIGATION MEETING ADDITIONS
+  // ═══════════════════════════════════════════════════════════
+
+  /// Given the resolved Member objects for an investigation's
+  /// committee, returns whichever one is highest-ranking — treated
+  /// as the Committee Chairman, per the locked decision (computed
+  /// dynamically, no explicit chairman field needed). Returns null
+  /// if the committee is empty.
+  ///
+  /// Takes resolved Member objects rather than IDs since
+  /// PermissionService doesn't depend on MockMembers (mock_data.dart
+  /// already depends on this file — a reverse import would be
+  /// circular) — the caller looks up the members first.
+  static Member? committeeChairman(List<Member> committeeMembers) {
+    if (committeeMembers.isEmpty) return null;
+    final sorted = List<Member>.from(committeeMembers)
+      ..sort((a, b) => RankHelper.rankOrder(a.rank).compareTo(RankHelper.rankOrder(b.rank)));
+    return sorted.first;
+  }
+
+  /// Is `member` the Committee Chairman of this investigation's
+  /// committee (highest-ranking member)?
+  static bool isCommitteeChairman(Member member, List<Member> committeeMembers) {
+    final chairman = committeeChairman(committeeMembers);
+    return chairman != null && chairman.id == member.id;
+  }
+
+  /// Can `member` request to invite a higher-rank officer to an
+  /// Investigation meeting? Only the Committee Chairman — anyone
+  /// else on the committee isn't authorized to expand who's invited.
+  static bool canRequestOfficerInvite(Member member, List<Member> committeeMembers) {
+    return isCommitteeChairman(member, committeeMembers);
+  }
+
+  /// Can `member` add an officer to the meeting DIRECTLY, with no
+  /// approval needed? Master Access only.
+  static bool canAddOfficerDirectly(Member member) {
+    return hasAdminOrMasterAccess(member);
+  }
+
+  /// Can `member` approve/deny a pending OfficerInviteRequest? Master
+  /// Access only — same tier as direct-add, since this is the
+  /// approval step for the Chairman's request.
+  static bool canApproveOfficerInvite(Member member) {
+    return hasAdminOrMasterAccess(member);
+  }
 }

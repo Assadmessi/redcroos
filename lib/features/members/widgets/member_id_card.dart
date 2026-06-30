@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:math' as math;
 import '../../../data/models/models.dart';
-import '../../../core/utils/app_utils.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/vcard_builder.dart';
+import 'member_avatar.dart';
 
 class MemberIdCard extends StatefulWidget {
   final Member member;
@@ -239,41 +242,13 @@ class _CardFront extends StatelessWidget {
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Container(
+                        MemberAvatar(
+                          member: member,
                           width: 70,
                           height: 80,
-                          decoration: BoxDecoration(
-                            color: AvatarColorGen.fromString(member.id),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.black12),
-                          ),
-                          child: member.photoUrl != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Image.network(member.photoUrl!, fit: BoxFit.cover),
-                                )
-                              : Center(
-                                  child: Text(
-                                    member.initials,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20),
-                                  ),
-                                ),
-                        ),
-                        Positioned(
-                          bottom: -6,
-                          right: -10,
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.add, color: Color(0xFFD32F2F), size: 18),
-                          ),
+                          shape: BoxShape.rectangle,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.black12),
                         ),
                       ],
                     ),
@@ -359,12 +334,12 @@ class _CardBack extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_outline, size: 11, color: Colors.black45),
-                    SizedBox(width: 4),
-                    Text('Contact info only',
+                    const Icon(Icons.lock_outline, size: 11, color: Colors.black45),
+                    const SizedBox(width: 4),
+                    const Text('Contact info only',
                         style: TextStyle(fontSize: 8, color: Colors.black45)),
                   ],
                 ),
@@ -413,16 +388,29 @@ class _CardBack extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('($issuerNameEn)', style: const TextStyle(fontSize: 8)),
-                  const Text('Township Red Cross Brigade Officer',
-                      style: TextStyle(fontSize: 8)),
-                ],
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // vCard QR — standard contact-card format, readable
+                // by any phone's camera with no app needed. Shows
+                // ONLY public-safe contact info (name, phone, email,
+                // emergency contact) — never NRC, DOB, or rank/unit
+                // detail, since this can be scanned by anyone.
+                QrImageView(
+                  data: VCardBuilder.build(member),
+                  size: 44,
+                  backgroundColor: Colors.white,
+                ),
+                const Spacer(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('($issuerNameEn)', style: const TextStyle(fontSize: 8)),
+                    const Text('Township Red Cross Brigade Officer',
+                        style: TextStyle(fontSize: 8)),
+                  ],
+                ),
+              ],
             ),
           ],
         ),

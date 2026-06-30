@@ -5,6 +5,7 @@ import '../../data/mock/mock_data.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_utils.dart';
+import '../../core/utils/permission_service.dart';
 import '../auth/auth_provider.dart';
 import 'meeting_form_screen.dart';
 import 'meeting_minutes_view_screen.dart';
@@ -213,6 +214,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final canMarkAttendance = auth.canMarkAttendance(_meeting);
     final canRecordDiscussion = auth.canRecordDiscussion(_meeting);
     final canApprove = auth.canApproveMinutes;
+    final isStartedInvestigationMeeting = _meeting.type == MeetingType.investigation &&
+        _meeting.status != MeetingStatus.scheduled;
+    final linkedInvestigation = _meeting.linkedInvestigationId != null
+        ? MockInvestigations.findById(_meeting.linkedInvestigationId!)
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -245,7 +251,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           const SizedBox(height: 16),
           _buildWorkflowCard(canRecordDiscussion, canApprove),
           const SizedBox(height: 16),
-          _buildAttendanceCard(canMarkAttendance),
+          if (isStartedInvestigationMeeting)
+            _buildInvestigationStageCard(linkedInvestigation, canRecordDiscussion)
+          else
+            _buildAttendanceCard(canMarkAttendance),
           const SizedBox(height: 16),
           _buildAgendaCard(canRecordDiscussion),
           const SizedBox(height: 16),
@@ -301,6 +310,22 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           const SizedBox(width: 10),
           SizedBox(
             width: 80,
+            child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey500)),
+          ),
+          Expanded(child: Text(value, style: AppTextStyles.bodyMedium)),
+        ],
+      ),
+    );
+  }
+
+  Widget _kv(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
             child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.grey500)),
           ),
           Expanded(child: Text(value, style: AppTextStyles.bodyMedium)),
@@ -379,6 +404,280 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         MeetingStatus.signed => 'Signed — ready to publish to all invitees.',
         MeetingStatus.published => 'Published.',
       };
+
+  Widget _buildInvestigationStageCard(Investigation? investigation, bool canRecordDiscussion) {
+    final auth = context.read<AuthProvider>();
+    final committeeMembers = investigation != null
+        ? investigation.committeeMemberIds.map((id) => MockMembers.findById(id)).whereType<Member>().toList()
+        : <Member>[];
+    final chairman = PermissionService.committeeChairman(committeeMembers);
+    final canRequestInvite = auth.canRequestOfficerInvite(committeeMembers);
+    final canAddDirectly = auth.canAddOfficerDirectly;
+    final canApproveInvites = auth.canApproveOfficerInvite;
+    final pendingInvites = MockOfficerInviteRequests.pendingForMeeting(_meeting.id);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Investigation Stage', style: AppTextStyles.headingSmall),
+            const SizedBox(height: 4),
+            Text(
+              'Committee members are assumed to always attend — showing case progress instead.',
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+            ),
+            const SizedBox(height: 12),
+            if (investigation == null)
+              Text('No linked investigation found.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.grey500))
+            else ...[
+              _kv('Case', '${investigation.caseNumber} — ${investigation.title}'),
+              _kv('Current Stage', _stageLabel(investigation.status)),
+              if (chairman != null) _kv('Committee Chairman', '${chairman.nameEn} (${chairman.rankNameEn})'),
+              const SizedBox(height: 12),
+              Text('Stage History', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              ...investigation.stageLogs.map((log) {
+                final actor = MockMembers.findById(log.actionedById);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.fiber_manual_record, size: 10, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_stageLabel(log.stage), style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+                            Text(
+                              '${AppFormatters.date(log.timestamp)} · ${actor?.nameEn ?? log.actionedById}',
+                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.grey500),
+                            ),
+                            if (log.notes != null) Text(log.notes!, style: AppTextStyles.bodySmall),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            const Divider(height: 24),
+            Text('Invited Officers', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            ..._meeting.invitedMemberIds.map((id) {
+              final m = MockMembers.findById(id);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text('${m?.nameEn ?? id} — ${m?.rankNameEn ?? ''}', style: AppTextStyles.bodySmall),
+              );
+            }),
+            if (pendingInvites.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Pending Invite Requests', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold, color: Colors.orange)),
+              ...pendingInvites.map((r) => _pendingOfficerInviteRow(r, canApproveInvites)),
+            ],
+            if (canRequestInvite || canAddDirectly) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => _openOfficerInviteSheet(canAddDirectly),
+                icon: const Icon(Icons.person_add_alt_outlined, size: 18),
+                label: Text(canAddDirectly ? 'Add Officer' : 'Request to Invite Officer'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _stageLabel(InvestigationStatus status) => switch (status) {
+        InvestigationStatus.opened => 'Opened',
+        InvestigationStatus.underInvestigation => 'Under Investigation',
+        InvestigationStatus.hearingScheduled => 'Hearing Scheduled',
+        InvestigationStatus.hearingConducted => 'Hearing Conducted',
+        InvestigationStatus.deliberation => 'Deliberation',
+        InvestigationStatus.concluded => 'Concluded',
+        InvestigationStatus.closed => 'Closed',
+        InvestigationStatus.appealed => 'Appealed',
+        InvestigationStatus.appealReview => 'Appeal Under Review',
+        InvestigationStatus.appealConcluded => 'Appeal Concluded',
+      };
+
+  Widget _pendingOfficerInviteRow(OfficerInviteRequest request, bool canApprove) {
+    final officer = MockMembers.findById(request.officerMemberId);
+    final requester = MockMembers.findById(request.requestedByMemberId);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${officer?.nameEn ?? request.officerMemberId} — requested by ${requester?.nameEn ?? request.requestedByMemberId}',
+              style: AppTextStyles.bodySmall,
+            ),
+          ),
+          if (canApprove) ...[
+            TextButton(
+              onPressed: () => _decideOfficerInvite(request, false),
+              child: const Text('Deny'),
+            ),
+            ElevatedButton(
+              onPressed: () => _decideOfficerInvite(request, true),
+              child: const Text('Approve'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _decideOfficerInvite(OfficerInviteRequest request, bool approve) {
+    final auth = context.read<AuthProvider>();
+    MockOfficerInviteRequests.update(OfficerInviteRequest(
+      id: request.id, meetingId: request.meetingId,
+      requestedByMemberId: request.requestedByMemberId,
+      officerMemberId: request.officerMemberId, reason: request.reason,
+      status: approve ? OfficerInviteRequestStatus.approved : OfficerInviteRequestStatus.denied,
+      approverId: auth.currentMember?.id,
+      requestedAt: request.requestedAt, decidedAt: DateTime.now(),
+    ));
+
+    if (approve) {
+      setState(() {
+        _meeting = Meeting(
+          id: _meeting.id, title: _meeting.title, titleMm: _meeting.titleMm,
+          type: _meeting.type, date: _meeting.date,
+          timeHour: _meeting.timeHour, timeMinute: _meeting.timeMinute,
+          location: _meeting.location,
+          invitedMemberIds: [..._meeting.invitedMemberIds, request.officerMemberId],
+          attendedMemberIds: _meeting.attendedMemberIds,
+          excusedMemberIds: _meeting.excusedMemberIds,
+          absentMemberIds: _meeting.absentMemberIds,
+          minimumRank: _meeting.minimumRank,
+          agenda: _meeting.agenda, minutes: _meeting.minutes,
+          status: _meeting.status, tasks: _meeting.tasks,
+          createdAt: _meeting.createdAt,
+          meetingNumber: _meeting.meetingNumber, meetingYear: _meeting.meetingYear,
+          agendaItems: _meeting.agendaItems,
+          organizerMemberId: _meeting.organizerMemberId,
+          recorderMemberId: _meeting.recorderMemberId,
+          approvedByMemberId: _meeting.approvedByMemberId,
+          linkedInvestigationId: _meeting.linkedInvestigationId,
+        );
+      });
+      MockMeetings.update(_meeting);
+    } else {
+      setState(() {});
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(approve ? 'Officer invited' : 'Request denied')),
+    );
+  }
+
+  Future<void> _openOfficerInviteSheet(bool canAddDirectly) async {
+    final candidates = MockMembers.all
+        .where((m) => m.nameEn.isNotEmpty && !_meeting.invitedMemberIds.contains(m.id))
+        .toList()
+      ..sort((a, b) => a.nameEn.compareTo(b.nameEn));
+
+    String? selectedId;
+    final reasonCtrl = TextEditingController();
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, top: 16,
+            bottom: 16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(canAddDirectly ? 'Add Officer' : 'Request to Invite Officer', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedId,
+                    decoration: const InputDecoration(labelText: 'Officer', border: OutlineInputBorder()),
+                    items: candidates.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.nameEn} (${m.rankNameEn})'))).toList(),
+                    onChanged: (v) => setSheetState(() => selectedId = v),
+                  ),
+                  if (!canAddDirectly) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: reasonCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: selectedId == null ? null : () => Navigator.pop(sheetContext, true),
+                    child: Text(canAddDirectly ? 'Add' : 'Submit Request'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true || selectedId == null) return;
+    final auth = context.read<AuthProvider>();
+
+    if (canAddDirectly) {
+      setState(() {
+        _meeting = Meeting(
+          id: _meeting.id, title: _meeting.title, titleMm: _meeting.titleMm,
+          type: _meeting.type, date: _meeting.date,
+          timeHour: _meeting.timeHour, timeMinute: _meeting.timeMinute,
+          location: _meeting.location,
+          invitedMemberIds: [..._meeting.invitedMemberIds, selectedId!],
+          attendedMemberIds: _meeting.attendedMemberIds,
+          excusedMemberIds: _meeting.excusedMemberIds,
+          absentMemberIds: _meeting.absentMemberIds,
+          minimumRank: _meeting.minimumRank,
+          agenda: _meeting.agenda, minutes: _meeting.minutes,
+          status: _meeting.status, tasks: _meeting.tasks,
+          createdAt: _meeting.createdAt,
+          meetingNumber: _meeting.meetingNumber, meetingYear: _meeting.meetingYear,
+          agendaItems: _meeting.agendaItems,
+          organizerMemberId: _meeting.organizerMemberId,
+          recorderMemberId: _meeting.recorderMemberId,
+          approvedByMemberId: _meeting.approvedByMemberId,
+          linkedInvestigationId: _meeting.linkedInvestigationId,
+        );
+      });
+      MockMeetings.update(_meeting);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Officer added')),
+      );
+    } else {
+      MockOfficerInviteRequests.add(OfficerInviteRequest(
+        id: 'invite_${DateTime.now().microsecondsSinceEpoch}',
+        meetingId: _meeting.id,
+        requestedByMemberId: auth.currentMember!.id,
+        officerMemberId: selectedId!,
+        reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim(),
+        status: OfficerInviteRequestStatus.pending,
+        requestedAt: DateTime.now(),
+      ));
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request sent to Master Access for approval')),
+      );
+    }
+  }
 
   Widget _buildAttendanceCard(bool canMark) {
     return Card(

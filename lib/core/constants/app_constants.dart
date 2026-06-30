@@ -232,6 +232,7 @@ enum DutyType {
   eventMedical,
   disaster,
   administrative,
+  emergency,
   other,
 }
 

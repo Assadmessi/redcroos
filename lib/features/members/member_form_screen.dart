@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/models.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import 'widgets/member_avatar.dart';
 
 class MemberFormScreen extends StatefulWidget {
   final Member? member; // null = add new, non-null = edit
@@ -154,6 +155,44 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _sectionCard('Photo', [
+              Center(
+                child: Column(
+                  children: [
+                    if (widget.member != null)
+                      MemberAvatar(
+                        member: widget.member!,
+                        width: 84,
+                        height: 96,
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.grey50.withValues(alpha: 0.4)),
+                      )
+                    else
+                      Container(
+                        width: 84,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: AppColors.grey50.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.grey50.withValues(alpha: 0.4)),
+                        ),
+                        child: Icon(Icons.person, size: 50, color: AppColors.grey500),
+                      ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Photo upload coming soon')),
+                        );
+                      },
+                      icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                      label: const Text('Photo Upload Coming Soon'),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
             _sectionCard('Brigade Info', [
               _textField(_nameEnCtrl, 'Name (English)', required: true),
               _textField(_nameMmCtrl, 'Name (Myanmar)', required: true),
@@ -207,7 +246,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                    Icon(Icons.info_outline, size: 18, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

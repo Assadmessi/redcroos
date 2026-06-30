@@ -470,6 +470,37 @@ class Duty {
   final String? description;
   final bool isEvent;
   final String? eventId;
+  // ── Emergency Duty additions ──
+  // Set when this duty was created on-the-spot by whoever arrived
+  // first at an unexpected accident, rather than pre-scheduled by a
+  // Commander. Distinct from `type == DutyType.emergency` itself
+  // since editing could theoretically change the type later — this
+  // tracks who actually created it for accountability.
+  final String? createdByMemberId;
+  // True if this emergency duty is disaster-level — the trigger
+  // condition (alongside being within Botahtaung) for the manual
+  // "Escalate to Large Scale" action once the duty is completed.
+  final bool isDisasterLevel;
+  // Set on an emergency duty once it's been escalated — points to
+  // the new Large Scale duty that was created from it.
+  final String? escalatedToDutyId;
+  // Set on a Large Scale duty that originated from an escalated
+  // emergency duty — points back to the original.
+  final String? originatingEmergencyDutyId;
+  // True if this duty is mutual aid OUTSIDE Botahtaung (responding
+  // to another township/district's request). The disaster
+  // escalation trigger only applies when this is false — i.e. the
+  // emergency is within this brigade's own jurisdiction.
+  final bool isMutualAidOutsideBotahtaung;
+  // Free-text after-action report — anyone involved can draft it,
+  // but it only counts as finalized once approvedByMemberId is set
+  // by the leadership-tier approver (Brigade Office Chief/Deputy/
+  // Commander/Master Access).
+  final String? report;
+  final String? reportSubmittedByMemberId;
+  final DateTime? reportSubmittedAt;
+  final String? approvedByMemberId;
+  final DateTime? approvedAt;
 
   const Duty({
     required this.id,
@@ -488,6 +519,16 @@ class Duty {
     this.description,
     this.isEvent = false,
     this.eventId,
+    this.createdByMemberId,
+    this.isDisasterLevel = false,
+    this.escalatedToDutyId,
+    this.originatingEmergencyDutyId,
+    this.isMutualAidOutsideBotahtaung = false,
+    this.report,
+    this.reportSubmittedByMemberId,
+    this.reportSubmittedAt,
+    this.approvedByMemberId,
+    this.approvedAt,
   });
 
   String get startTimeDisplay =>
@@ -500,6 +541,20 @@ class Duty {
       .where((m) => m.roleInDuty == DutyRoleInDuty.commander)
       .firstOrNull;
 
+  /// Is this duty eligible for the manual "Escalate to Large Scale"
+  /// action? Requires ALL of: it's an emergency duty, it's flagged
+  /// disaster-level, it's within Botahtaung (not mutual aid
+  /// elsewhere), it's already completed, and it hasn't already been
+  /// escalated once.
+  bool get isEligibleForEscalation =>
+      type == DutyType.emergency &&
+      isDisasterLevel &&
+      !isMutualAidOutsideBotahtaung &&
+      status == DutyStatus.completed &&
+      escalatedToDutyId == null;
+
+  bool get isReportApproved => approvedByMemberId != null;
+
   String get typeDisplay {
     switch (type) {
       case DutyType.firstAid: return 'First Aid';
@@ -509,6 +564,7 @@ class Duty {
       case DutyType.eventMedical: return 'Event Medical';
       case DutyType.disaster: return 'Disaster Response';
       case DutyType.administrative: return 'Administrative';
+      case DutyType.emergency: return 'Emergency';
       case DutyType.other: return 'Other';
     }
   }
@@ -810,6 +866,14 @@ class Meeting {
   final String? recorderMemberId;    // who took minutes (often Sergeant Clerk)
   final String? approvedByMemberId;  // Brigade Office Chief/Deputy/Commander sign-off
 
+  // ── Investigation meeting additions ──
+  // Links an Investigation-type meeting to the specific Investigation
+  // it's about. Once the meeting starts, the detail screen shows
+  // this investigation's stage/progress instead of the normal
+  // attendance card, since committee members are assumed to always
+  // attend.
+  final String? linkedInvestigationId;
+
   const Meeting({
     required this.id,
     required this.title,
@@ -835,6 +899,7 @@ class Meeting {
     this.organizerMemberId,
     this.recorderMemberId,
     this.approvedByMemberId,
+    this.linkedInvestigationId,
   });
 
   String get timeDisplay =>
@@ -2197,4 +2262,41 @@ class ClassNominationList {
 
   bool get isEligibleForAutoEnroll =>
       status == NominationListStatus.pending && wasSubmittedOnTime;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INVESTIGATION MEETING — OFFICER INVITE REQUEST
+//
+// During an Investigation meeting, the Committee Chairman can
+// request to add a higher-rank officer who isn't already invited.
+// Always routed to Master Access for approval — Master Access can
+// also add an officer directly with no request needed.
+// ═══════════════════════════════════════════════════════════════
+
+enum OfficerInviteRequestStatus { pending, approved, denied }
+
+class OfficerInviteRequest {
+  final String id;
+  final String meetingId;
+  final String requestedByMemberId; // the Committee Chairman
+  final String officerMemberId;     // who they want to invite
+  final String? reason;
+  final OfficerInviteRequestStatus status;
+  final String? approverId;
+  final DateTime requestedAt;
+  final DateTime? decidedAt;
+  final String? denialReason;
+
+  const OfficerInviteRequest({
+    required this.id,
+    required this.meetingId,
+    required this.requestedByMemberId,
+    required this.officerMemberId,
+    this.reason,
+    required this.status,
+    this.approverId,
+    required this.requestedAt,
+    this.decidedAt,
+    this.denialReason,
+  });
 }

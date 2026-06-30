@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/auth_provider.dart';
 import 'widgets/member_card.dart';
+import 'widgets/member_avatar.dart';
 import 'member_detail_screen.dart';
 import 'member_form_screen.dart';
 import 'access_grant_approval_screen.dart';
@@ -290,16 +291,7 @@ class _MembersScreenState extends State<MembersScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: AppColors.primary,
-                  backgroundImage:
-                      me.photoUrl != null ? NetworkImage(me.photoUrl!) : null,
-                  child: me.photoUrl == null
-                      ? Text(me.initials,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                      : null,
-                ),
+                MemberAvatar(member: me, size: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -318,7 +310,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.primary),
+                Icon(Icons.chevron_right, color: AppColors.primary),
               ],
             ),
           ),
@@ -412,7 +404,7 @@ class _MembersScreenState extends State<MembersScreen> {
         children: [
           if (showMyUnitChip) ...[
             FilterChip(
-              label: Text(_myUnitLabel(me)),
+              label: Text(_myUnitLabel(me!)),
               selected: _myUnitOnly,
               onSelected: (val) => setState(() => _myUnitOnly = val),
               selectedColor: AppColors.primary.withValues(alpha: 0.15),
@@ -503,7 +495,7 @@ class _MembersScreenState extends State<MembersScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.person_search, size: 48, color: AppColors.grey50),
+          Icon(Icons.person_search, size: 48, color: AppColors.grey50),
           const SizedBox(height: 12),
           Text(
             auth.tr('No members found', 'မည်သည့်အဖွဲ့ဝင်မှ တွေ့မရှိပါ'),
